@@ -1,5 +1,5 @@
 import { defineCollection, z } from 'astro:content';
-import { glob } from 'astro/loaders';
+import { createBlogLoader } from '@/lib/blog-loader';
 
 export const changelogItemSchema = z.object({
   date: z.coerce.date(),
@@ -35,7 +35,7 @@ export const blogSchema = z.object({
 });
 
 export const blog = defineCollection({
-  loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/blog' }),
+  loader: createBlogLoader(),
   schema: blogSchema,
 });
 

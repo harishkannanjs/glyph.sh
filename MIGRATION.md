@@ -1,126 +1,135 @@
-# Content Migration Guide
+# Content Publishing & Migration Guide
 
-This guide explains how to migrate existing technical write-ups, CTF solutions, and research notes into this Terminal Blog.
-
----
-
-## 1. File Location & File Types
-
-Place all post files in:
-```
-src/content/blog/
-```
-
-- Standard Markdown: `<slug>.md`
-- Markdown with Interactive Components: `<slug>.mdx`
-
-> [!NOTE]
-> Any `.md` or `.mdx` dropped in `src/content/blog/` will automatically appear on the index, generate its own route at `/blog/<slug>`, appear on tag pages, be added to the sitemap and `feed.xml`, and be indexed by Pagefind during the build.
+This guide explains how to publish and manage technical write-ups, multi-part series, and research notes in this Terminal Blog.
 
 ---
 
-## 2. Required Frontmatter Schema
+## 1. Directory Structure: `/Blogs`
 
-Every post must include the following YAML frontmatter at the top of the file:
+The blog engine uses a root-level `/Blogs` directory organized into two dedicated folders:
+
+```
+Blogs/
+├── series/
+│   └── <name_of_the_series>/
+│       ├── 01-first-part.md (or .mdx)
+│       ├── 02-second-part.mdx
+│       └── ...
+└── standalone/
+    ├── standalone-writeup-one.md (or .mdx)
+    ├── standalone-writeup-two.mdx
+    └── ...
+```
+
+---
+
+## 2. Publishing a Series Write-up
+
+To publish a multi-part series:
+1. Create a subfolder inside `Blogs/series/` named after your series (e.g. `Blogs/series/windows-internals-exploitation/` or `Blogs/series/linux_rootkits/`).
+2. Add your `.md` or `.mdx` files inside that series folder.
+3. Prefix filenames with numbers to specify order (e.g. `01-anticheat-dr7-hooks.mdx`, `02-kernel-alpc-race.mdx`).
+
+### Dynamic Resolution for Series:
+- **Series Name**: Automatically inferred from the folder name (e.g. `windows-internals-exploitation` &rarr; `"Windows Internals Exploitation"`), unless explicitly specified via frontmatter `series: "..."`.
+- **Write-up Title**: Automatically formatted from the filename (e.g. `01-anticheat-dr7-hooks.mdx` &rarr; `"Anticheat DR7 Hooks"`), unless explicitly specified via frontmatter `title: "..."`.
+- **Series Part (`seriesPart`)**: Automatically extracted from the filename prefix (`01-`, `1-`, `part-1-`) or the alphabetical order in the folder.
+- **Series Total (`seriesTotal`)**: Automatically calculated from the total number of write-ups in that series folder! When you add a new part (e.g. `03-hypervisor-break.mdx`), the total count automatically updates to 3 across the entire series with zero manual editing.
+
+---
+
+## 3. Publishing a Standalone Write-up
+
+To publish an independent article or research note:
+1. Place your `.md` or `.mdx` file directly inside `Blogs/standalone/` (e.g. `Blogs/standalone/coppelia-sim-rust.mdx`).
+
+### Dynamic Resolution for Standalone:
+- **Write-up Title**: Automatically formatted from the filename (e.g. `coppelia-sim-rust.mdx` &rarr; `"Coppelia Sim Rust"`), unless explicitly specified via frontmatter `title: "..."`.
+- **Series Status**: Automatically marked as a standalone article (`series: undefined`).
+
+---
+
+## 4. Optional YAML Frontmatter
+
+Frontmatter is **completely optional** thanks to the dynamic loader, but you can include it to provide exact descriptions, custom tags, publication dates, drafts, or changelogs:
 
 ```yaml
 ---
-title: "Exploiting a Double-Fetch Race Condition in Windows Kernel ALPC"
-description: "An in-depth root cause analysis of a TOCTOU race condition in LPC message routines."
+title: "Exploiting a double-fetch race condition in Windows Kernel ALPC"
+description: "An in-depth root cause analysis of a subtle TOCTOU vulnerability in custom LPC message handling routines."
 pubDate: 2026-02-18
 tags: ["reverse-engineering", "windows-internals", "c"]
----
-```
-
-### Required Fields
-- `title` *(string)*: The full post title.
-- `description` *(string)*: One-line summary used for post cards, SEO meta, and social preview cards.
-- `pubDate` *(Date or YYYY-MM-DD)*: The publication date.
-- `tags` *(array of strings, minimum 1)*: Categories or taxonomy tags (e.g. `["kernel", "x86-64"]`).
-
----
-
-## 3. Optional Frontmatter Fields
-
-```yaml
----
-# All required fields above plus:
-updatedDate: 2026-02-22          # Revision date
-draft: false                      # Set to true to hide from listing, search, & RSS
-heroImage: "/images/cover.png"    # Optional custom cover image
-series: "Windows Internals"       # Series name (requires seriesPart & seriesTotal)
-seriesPart: 2                     # Part number (1-based index)
-seriesTotal: 4                    # Total number of parts in the series
-changelog:                        # Powers the revision changelog popover
+draft: false
+updatedDate: 2026-02-22
+changelog:
   - date: 2026-02-22
-    summary: "Corrected PTE calculation"
+    summary: "Corrected the PTE offset calculation"
     diff: "- old_code();\n+ new_code();"
 ---
 ```
 
-### Series Grouping Rules
-If a post is part of a multi-part series:
-1. You **must** define all three fields: `series`, `seriesPart`, and `seriesTotal`.
-2. If `series` is omitted, `seriesPart` and `seriesTotal` must also be omitted.
-3. The build system will fail loudly with a validation error if this invariant is violated.
+### Supported Frontmatter Fields:
+| Field | Type | Description | Dynamic Default if Omitted |
+|---|---|---|---|
+| `title` | string | Full post title | Formatted from filename |
+| `description` | string | Article description / summary | Generated from title |
+| `pubDate` | Date | Publication date | File modification / creation date |
+| `tags` | string[] | Array of tags | Series tag or `['research', 'security']` |
+| `draft` | boolean | If `true`, strictly excluded from production | `false` |
+| `updatedDate` | Date | Revision timestamp | Omitted |
+| `changelog` | array | Revision diffs & notes | Omitted |
 
 ---
 
-## 4. Using Custom MDX Components
+## 5. Interactive MDX Components
 
-For `.mdx` posts, the following components are globally available:
+You can use all custom research components inside any `.mdx` write-up:
 
-### 4.1 Spoiler / Concealed Payloads (`<Spoiler>`)
-Used for CTF flags, exploit primitives, or solution spoilers:
+### `<Spoiler>`
 ```mdx
-<Spoiler label="Privilege Escalation Token Swap" type="payload">
-```c
-*(PULONG_PTR)(target_eprocess + TOKEN_OFFSET) = system_token;
-```
+import Spoiler from '@/components/Spoiler.astro';
+
+<Spoiler label="CTF Flag Payload">
+`FLAG{alpc_pwn_r0_c0mpl3t3}`
 </Spoiler>
 ```
 
-### 4.2 Mermaid Architecture Diagrams (`<Mermaid>`)
-Used for state machines, memory layouts, and exploit chains:
-```mdx
-<Mermaid caption="ALPC TOCTOU Message Flow">
-{`
-sequenceDiagram
-    autonumber
-    Client->>Kernel: Send Buffer
-    Kernel->>Kernel: Validation Pass
-    Client->>Client: Flip Length in User Memory
-    Kernel->>Server: Double Fetch OOB Copy
-`}
-</Mermaid>
-```
+### `<Mermaid>`
+````mdx
+import Mermaid from '@/components/Mermaid.astro';
 
-### 4.3 Asciinema Terminal Sessions (`<Asciinema>`)
-Drop `.cast` recording files in `public/recordings/` and embed:
-```mdx
-<Asciinema
-  src="/recordings/dr7-hook-session.cast"
-  title="Kernel WinDbg Session"
-/>
-```
-
-### 4.4 Sidenotes / Margin Notes (`<Sidenote>`)
-Renders in the outer margin on wide viewports (≥1400px), collapsing to inline footnotes on smaller displays:
-```mdx
-The race window was narrow.<Sidenote number="1">Measured at approximately 120ns on an i9-13900K.</Sidenote>
-```
-
-### 4.5 Math Equations (KaTeX)
-Standard KaTeX notation is supported:
-- Inline: `$E = mc^2$`
-- Display: `$$\hat{\mathbf{x}}_{k|k-1} = \mathbf{F}_k \hat{\mathbf{x}}_{k-1|k-1} + \mathbf{B}_k u_k$$`
-
-### 4.6 Diff Code Blocks
-Use the `diff` language identifier in markdown code blocks:
-````markdown
-```diff
-- Status = ProbeAndRead(UserMessage->Length);
-+ Status = SafeCopyMessage(&SafeMessage, UserMessage);
-```
+<Mermaid code={`
+flowchart LR
+    Sensors["IR Sensor"] --> IPC["Shared Memory IPC"]
+    IPC --> KF["Kalman Filter"]
+`} />
 ````
-Lines beginning with `+` are highlighted in terminal emerald green (`#3ddc84`), and lines beginning with `-` are highlighted in error red (`#f2555a`).
+
+### `<Asciinema>`
+```mdx
+import Asciinema from '@/components/Asciinema.astro';
+
+<Asciinema src="/casts/kernel-race.cast" rows={24} cols={80} />
+```
+
+### `<Sidenote>`
+```mdx
+import Sidenote from '@/components/Sidenote.astro';
+
+Text discussing ALPC ports.<Sidenote id="1">See `ntoskrnl!AlpcpSendMessage` for validation routines.</Sidenote>
+```
+
+---
+
+## 6. Deployment to GitHub Pages (`github.io`)
+
+1. **Commit your changes**:
+   ```bash
+   git add Blogs/
+   git commit -m "feat: add new write-up"
+   ```
+2. **Push to GitHub**:
+   ```bash
+   git push origin main
+   ```
+3. GitHub Actions (`.github/workflows/deploy.yml`) will automatically run tests, build the static assets and search indices, and deploy directly to your `github.io` site.

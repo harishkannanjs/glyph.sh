@@ -16,16 +16,50 @@ export async function getStaticPaths() {
 
   posts.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
 
-  return posts.map((post, index) => ({
-    params: { slug: post.id.replace(/\.(md|mdx)$/, '') },
-    props: {
-      post,
-      allPosts: posts,
-      // Previous is older (next index), Next is newer (previous index)
-      prevPost: index < posts.length - 1 ? posts[index + 1] : null,
-      nextPost: index > 0 ? posts[index - 1] : null,
-    },
-  }));
+  const paths: {
+    params: { slug: string };
+    props: { post: (typeof posts)[0]; allPosts: typeof posts; prevPost: (typeof posts)[0] | null; nextPost: (typeof posts)[0] | null };
+  }[] = [];
+  const registered = new Set<string>();
+
+  posts.forEach((post, index) => {
+    const prevPost = index < posts.length - 1 ? posts[index + 1] : null;
+    const nextPost = index > 0 ? posts[index - 1] : null;
+
+    const fullSlug = post.id.replace(/\.(md|mdx)$/, '');
+
+    // 1. Primary slug (e.g. series/windows-internals-exploitation/01-anticheat-dr7-hooks)
+    if (!registered.has(fullSlug)) {
+      registered.add(fullSlug);
+      paths.push({
+        params: { slug: fullSlug },
+        props: { post, allPosts: posts, prevPost, nextPost },
+      });
+    }
+
+    // 2. Leaf slug alias (e.g. 01-anticheat-dr7-hooks, coppelia-sim-rust)
+    const parts = fullSlug.split('/');
+    const leaf = parts[parts.length - 1];
+    if (!registered.has(leaf)) {
+      registered.add(leaf);
+      paths.push({
+        params: { slug: leaf },
+        props: { post, allPosts: posts, prevPost, nextPost },
+      });
+    }
+
+    // 3. Clean slug without numeric prefix (e.g. anticheat-dr7-hooks)
+    const cleanLeaf = leaf.replace(/^(?:part[-_]?)?\d+[-_]/i, '');
+    if (cleanLeaf && !registered.has(cleanLeaf)) {
+      registered.add(cleanLeaf);
+      paths.push({
+        params: { slug: cleanLeaf },
+        props: { post, allPosts: posts, prevPost, nextPost },
+      });
+    }
+  });
+
+  return paths;
 }
 
 const { post, allPosts, prevPost, nextPost } = Astro.props;

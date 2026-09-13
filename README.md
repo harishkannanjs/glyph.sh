@@ -17,7 +17,8 @@
 ## 2. Features Across All 4 Tiers
 
 ### Tier 0 — Foundation
-- [x] Drop any `.md`/`.mdx` file in `src/content/blog/` → automatically indexed, routed, and listed.
+- [x] Dynamic `/Blogs/` root directory: push multi-part series to `Blogs/series/<series_name>/` and standalone articles to `Blogs/standalone/` → automatically indexed, routed, and formatted.
+- [x] Dynamic title and series resolution from file and folder names with zero required boilerplate.
 - [x] Unified `<BlogPostLayout>` shell for all post pages.
 - [x] Dynamic reading time computed from actual word count.
 - [x] Taxonomies: filterable `/tags` directory and dynamic `/tags/[tag]` routes.
