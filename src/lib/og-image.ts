@@ -53,10 +53,10 @@ export async function generateOgImage({
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
-          backgroundColor: '#0b141c',
+          backgroundColor: '#1e1e2e',
           padding: '60px',
           fontFamily: 'JetBrains Mono',
-          border: '1px solid #3c4a3f',
+          border: '1px solid #45475a',
         },
         children: [
           // Top bar
@@ -67,7 +67,7 @@ export async function generateOgImage({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                borderBottom: '1px solid #242b32',
+                borderBottom: '1px solid #313244',
                 paddingBottom: '20px',
               },
               children: [
@@ -83,14 +83,14 @@ export async function generateOgImage({
                       {
                         type: 'span',
                         props: {
-                          style: { color: '#3ddc84', fontSize: '24px', fontWeight: 700 },
+                          style: { color: '#a6e3a1', fontSize: '24px', fontWeight: 700 },
                           children: '>',
                         },
                       },
                       {
                         type: 'span',
                         props: {
-                          style: { color: '#dae3ee', fontSize: '20px', fontWeight: 600 },
+                          style: { color: '#cdd6f4', fontSize: '20px', fontWeight: 600 },
                           children: 'harish@research:~$ cat writeup.md',
                         },
                       },
@@ -101,7 +101,7 @@ export async function generateOgImage({
                   type: 'div',
                   props: {
                     style: {
-                      color: '#869587',
+                      color: '#a6adc8',
                       fontSize: '16px',
                     },
                     children: `UID: 0x03E8 · ${formattedDate}`,
@@ -126,7 +126,7 @@ export async function generateOgImage({
                   type: 'div',
                   props: {
                     style: {
-                      color: '#dae3ee',
+                      color: '#cdd6f4',
                       fontSize: '44px',
                       fontWeight: 700,
                       lineHeight: 1.25,
@@ -138,7 +138,7 @@ export async function generateOgImage({
                   type: 'div',
                   props: {
                     style: {
-                      color: '#8b949e',
+                      color: '#bac2de',
                       fontSize: '22px',
                       lineHeight: 1.5,
                     },
@@ -156,7 +156,7 @@ export async function generateOgImage({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                borderTop: '1px solid #242b32',
+                borderTop: '1px solid #313244',
                 paddingTop: '20px',
               },
               children: [
@@ -172,9 +172,9 @@ export async function generateOgImage({
                       type: 'span',
                       props: {
                         style: {
-                          backgroundColor: '#222b33',
-                          border: '1px solid #3c4a3f',
-                          color: '#dae3ee',
+                          backgroundColor: '#313244',
+                          border: '1px solid #45475a',
+                          color: '#cdd6f4',
                           padding: '6px 14px',
                           borderRadius: '2px',
                           fontSize: '14px',
@@ -188,7 +188,7 @@ export async function generateOgImage({
                   type: 'div',
                   props: {
                     style: {
-                      color: '#3ddc84',
+                      color: '#a6e3a1',
                       fontSize: '16px',
                       fontWeight: 600,
                     },

@@ -1,132 +1,202 @@
 ---
+import { getCollection } from 'astro:content';
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import PostCard from '@/components/PostCard.astro';
+import TagBadge from '@/components/TagBadge.astro';
 import { siteConfig } from '@/site.config';
+import { getReadingTime } from '@/lib/reading-time';
+
+const isProd = import.meta.env.PROD;
+const userPosts = await getCollection('blog', ({ data }) => (isProd ? !data.draft : true));
+userPosts.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
+
+// Compute user's blog stats
+const totalPosts = userPosts.length;
+const totalWords = userPosts.reduce((acc, post) => acc + getReadingTime(post.body || '').words, 0);
+
+// Author's blog series
+const seriesMap = new Map<string, { total: number; posts: typeof userPosts }>();
+userPosts.forEach((post) => {
+  if (post.data.series) {
+    if (!seriesMap.has(post.data.series)) {
+      seriesMap.set(post.data.series, { total: post.data.seriesTotal || 0, posts: [] });
+    }
+    seriesMap.get(post.data.series)!.posts.push(post);
+  }
+});
+
+// Author's topics/tags with counts
+const tagCounts: Record<string, number> = {};
+userPosts.forEach((post) => {
+  post.data.tags.forEach((tag) => {
+    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+  });
+});
+const authorTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
 ---
 
-<BaseLayout title="About" activePath="/about">
+<BaseLayout title={`Profile // ${siteConfig.author}`} activePath="/about">
   <div class="max-w-[720px] mx-auto px-4 md:px-0 py-8 font-mono">
     <div class="flex flex-col space-y-10">
-      <!-- Section Header & Shell Prompt -->
+      <!-- Terminal Prompt Context -->
       <section class="flex flex-col space-y-2">
         <div class="flex items-center gap-2 text-primary text-[13px]">
           <span class="font-bold">$</span>
-          <span class="text-on-surface">whoami</span>
+          <span class="text-on-surface">whoami --profile</span>
         </div>
         <h1 class="text-[26px] sm:text-[28px] text-on-surface font-semibold tracking-tight">
-          About
+          Author Profile
         </h1>
       </section>
 
-      <!-- Bio & Terminal Avatar Core Block -->
-      <section class="flex flex-col md:flex-row gap-6 items-start">
-        <!-- 120px Sharp Avatar Container with 1px hairline border -->
-        <div class="w-[120px] h-[120px] shrink-0 bg-surface-container-low border border-outline-variant relative p-1 select-none">
-          <div class="w-full h-full bg-surface-container flex flex-col justify-between p-2 overflow-hidden">
-            <div class="flex justify-between items-center text-outline text-[11px]">
-              <span>UID</span>
-              <span class="text-primary font-bold">{siteConfig.uid}</span>
-            </div>
-            <div class="flex flex-col items-center justify-center my-auto">
-              <span class="text-primary text-[32px] font-bold leading-none">&gt;_</span>
-              <span class="text-[10px] text-outline-variant tracking-wider mt-1">SEC_LAB</span>
-            </div>
-            <div class="text-right text-[9px] text-outline font-mono leading-none">TTY:pts/1</div>
+      <!-- Profile Header Block -->
+      <section class="flex flex-col sm:flex-row gap-6 items-start p-4 bg-surface-container-low border border-outline-variant rounded-[2px]">
+        <!-- Avatar Container -->
+        <div class="w-[100px] h-[100px] shrink-0 bg-surface-container border border-outline-variant relative p-1 select-none flex flex-col justify-between">
+          <div class="flex justify-between items-center text-outline text-[10px]">
+            <span>ID</span>
+            <span class="text-primary font-bold">{siteConfig.handle}</span>
           </div>
+          <div class="flex flex-col items-center justify-center my-auto">
+            <span class="text-primary text-[28px] font-bold leading-none">&gt;_</span>
+          </div>
+          <div class="text-right text-[9px] text-outline leading-none">TTY:0</div>
         </div>
 
-        <!-- Bio Text -->
-        <div class="flex flex-col space-y-3 flex-1 text-[14px] text-on-surface-variant leading-relaxed">
+        <!-- Author Bio & Coordinates -->
+        <div class="flex flex-col space-y-3 flex-1 text-[13px] text-on-surface-variant leading-relaxed">
+          <div>
+            <h2 class="text-[18px] text-on-surface font-semibold tracking-tight">
+              {siteConfig.author}
+            </h2>
+            <p class="text-[12px] text-primary mt-0.5">
+              Security Researcher &amp; Systems Developer
+            </p>
+          </div>
+
           <p>
-            I am <strong class="text-on-surface font-semibold">{siteConfig.author}</strong>, a security researcher, vulnerability analyst, and systems software developer. My work focuses on low-level primitives across <span class="text-on-surface font-medium">Windows kernel exploitation</span>, <span class="text-on-surface font-medium">hypervisor research</span>, vulnerability discovery via static/dynamic reverse engineering, and embedded firmware architectures for low-level robotics.
+            {siteConfig.description}
           </p>
-          <p class="text-outline text-[13px]">
-            Currently auditing kernel virtualization boundaries, hypercalls, and real-time scheduling integrity.
-          </p>
-        </div>
-      </section>
 
-      <!-- Technical Focus & Skills: Clean Plain-Text List -->
-      <section class="flex flex-col space-y-4 pt-6 border-t border-outline-variant">
-        <div class="flex items-center gap-2 text-[11px] text-outline uppercase tracking-wider">
-          <span class="text-primary font-bold">[+]</span>
-          <span>Focus Areas &amp; Capabilities</span>
-        </div>
-        <div class="grid grid-cols-1 gap-3 text-[13px]">
-          <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 bg-surface-container-lowest p-3 border border-outline-variant">
-            <div class="w-48 shrink-0 text-on-surface font-semibold flex items-center gap-1.5 text-[13px]">
-              <span class="text-primary font-bold">&gt;</span> Vulnerability Research
-            </div>
-            <div class="text-on-surface-variant text-[13px]">
-              Windows Internals, ALPC/RPC, Hyper-V, Type Confusion, Memory Safety
-            </div>
-          </div>
-
-          <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 bg-surface-container-lowest p-3 border border-outline-variant">
-            <div class="w-48 shrink-0 text-on-surface font-semibold flex items-center gap-1.5 text-[13px]">
-              <span class="text-primary font-bold">&gt;</span> Reverse Engineering
-            </div>
-            <div class="text-on-surface-variant text-[13px]">
-              IDA Pro, Ghidra, WinDbg, x86-64 asm, ARM64, Hex Fiend, Symbol Resolution
-            </div>
-          </div>
-
-          <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 bg-surface-container-lowest p-3 border border-outline-variant">
-            <div class="w-48 shrink-0 text-on-surface font-semibold flex items-center gap-1.5 text-[13px]">
-              <span class="text-primary font-bold">&gt;</span> Systems &amp; Robotics
-            </div>
-            <div class="text-on-surface-variant text-[13px]">
-              Rust, Modern C/C++, Embedded RTOS, Bare-metal HAL, CoppeliaSim kinematics
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Public Coordinates & Plain Text Socials -->
-      <section class="flex flex-col space-y-4 pt-6 border-t border-outline-variant">
-        <div class="text-[11px] text-outline uppercase tracking-wider">
-          Public Identity &amp; Cryptographic Keys
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 text-[13px] text-on-surface-variant">
-          <div class="flex items-center gap-2">
-            <span class="text-outline w-24">GitHub:</span>
+          <div class="flex flex-wrap items-center gap-3 pt-1 text-[12px]">
             <a
               href={siteConfig.githubUrl}
               target="_blank"
               rel="noopener noreferrer"
-              class="text-on-surface hover:text-primary hover:underline underline-offset-4 transition-colors font-medium"
+              class="text-on-surface hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1 font-medium"
             >
-              {siteConfig.handle}
+              <span>GitHub: {siteConfig.handle}</span>
             </a>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <span class="text-outline w-24">Twitter/X:</span>
+            <span class="text-outline">·</span>
             <a
               href={siteConfig.twitterUrl}
               target="_blank"
               rel="noopener noreferrer"
-              class="text-on-surface hover:text-primary hover:underline underline-offset-4 transition-colors font-medium"
+              class="text-on-surface hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1 font-medium"
             >
-              {siteConfig.twitterHandle}
+              <span>Twitter: {siteConfig.twitterHandle}</span>
             </a>
-          </div>
-
-          <div class="flex items-start sm:items-center gap-2 col-span-1 sm:col-span-2 flex-col sm:flex-row">
-            <span class="text-outline w-24 shrink-0">PGP Key:</span>
-            <code class="text-primary bg-surface-container-low px-2 py-1 border border-outline-variant select-all text-[11px] break-all">
-              {siteConfig.pgpKey}
-            </code>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <span class="text-outline w-24">Syndication:</span>
+            <span class="text-outline">·</span>
             <a
               href="/feed.xml"
-              class="text-on-surface hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1 text-primary"
+              class="text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1 font-medium"
             >
-              <span>/feed.xml</span>
+              <span>RSS Feed</span>
             </a>
           </div>
+        </div>
+      </section>
+
+      <!-- Blog Telemetry & Activity Stats -->
+      <section class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[12px]">
+        <div class="p-3 bg-surface-container-lowest border border-outline-variant">
+          <div class="text-[10px] text-outline uppercase tracking-wider">Articles</div>
+          <div class="text-[18px] text-primary font-bold mt-1">{totalPosts}</div>
+        </div>
+        <div class="p-3 bg-surface-container-lowest border border-outline-variant">
+          <div class="text-[10px] text-outline uppercase tracking-wider">Series</div>
+          <div class="text-[18px] text-on-surface font-bold mt-1">{seriesMap.size}</div>
+        </div>
+        <div class="p-3 bg-surface-container-lowest border border-outline-variant">
+          <div class="text-[10px] text-outline uppercase tracking-wider">Topics</div>
+          <div class="text-[18px] text-on-surface font-bold mt-1">{authorTags.length}</div>
+        </div>
+        <div class="p-3 bg-surface-container-lowest border border-outline-variant">
+          <div class="text-[10px] text-outline uppercase tracking-wider">Total Words</div>
+          <div class="text-[18px] text-outline font-bold mt-1">~{totalWords.toLocaleString()}</div>
+        </div>
+      </section>
+
+      <!-- Author's Blog Series -->
+      {seriesMap.size > 0 && (
+        <section class="space-y-4 pt-4 border-t border-outline-variant">
+          <div class="flex items-center gap-2 text-[11px] text-outline uppercase tracking-wider">
+            <span class="text-primary font-bold">&gt;</span>
+            <span>Featured Writing Series</span>
+          </div>
+
+          <div class="space-y-3">
+            {[...seriesMap.entries()].map(([seriesName, data]) => (
+              <div class="p-3 bg-surface-container-low border border-outline-variant rounded-[2px] space-y-2">
+                <div class="flex items-center justify-between text-[12px]">
+                  <span class="text-on-surface font-semibold">'{seriesName}'</span>
+                  <span class="text-outline text-[11px]">{data.posts.length} of {data.total} parts published</span>
+                </div>
+                <div class="flex flex-wrap gap-2 pt-1">
+                  {data.posts
+                    .sort((a, b) => (a.data.seriesPart || 0) - (b.data.seriesPart || 0))
+                    .map((p) => {
+                      const slug = p.id.replace(/\.(md|mdx)$/, '');
+                      return (
+                        <a
+                          href={`/blog/${slug}`}
+                          class="px-2 py-1 bg-surface-container border border-outline-variant hover:border-primary text-on-surface-variant hover:text-primary text-[11px] rounded-[2px] transition-colors flex items-center gap-1.5"
+                        >
+                          <span class="text-primary font-bold">[{p.data.seriesPart}]</span>
+                          <span class="truncate max-w-[200px] sm:max-w-[300px]">{p.data.title}</span>
+                        </a>
+                      );
+                    })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <!-- Topics Covered by this Author -->
+      <section class="space-y-4 pt-4 border-t border-outline-variant">
+        <div class="flex items-center justify-between text-[11px] text-outline uppercase tracking-wider">
+          <div class="flex items-center gap-2">
+            <span class="text-primary font-bold">&gt;</span>
+            <span>Topics &amp; Research Areas</span>
+          </div>
+          <a href="/tags" class="text-primary hover:underline lowercase font-mono">
+            [view all taxonomies]
+          </a>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          {authorTags.map(([tag, count]) => (
+            <TagBadge tag={tag} count={count} size="md" />
+          ))}
+        </div>
+      </section>
+
+      <!-- Author's Blog Articles Feed -->
+      <section class="space-y-4 pt-4 border-t border-outline-variant">
+        <div class="flex items-center justify-between text-[11px] text-outline uppercase tracking-wider">
+          <div class="flex items-center gap-2">
+            <span class="text-primary font-bold">&gt;</span>
+            <span>Published Posts by {siteConfig.author}</span>
+          </div>
+          <span class="text-outline font-mono text-[11px]">{userPosts.length} entries</span>
+        </div>
+
+        <div class="flex flex-col space-y-6">
+          {userPosts.map((post, idx) => (
+            <PostCard post={post} showDivider={idx > 0} />
+          ))}
         </div>
       </section>
     </div>
