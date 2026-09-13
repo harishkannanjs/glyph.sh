@@ -104,7 +104,7 @@ export async function generateOgImage({
                       color: '#a6adc8',
                       fontSize: '16px',
                     },
-                    children: `UID: 0x03E8 · ${formattedDate}`,
+                    children: formattedDate,
                   },
                 },
               ],

@@ -9,8 +9,6 @@ const currentProfile = {
   title: siteConfig.title,
   description: siteConfig.description,
   siteUrl: siteConfig.siteUrl,
-  uid: siteConfig.uid,
-  tty: siteConfig.tty || "TTY:0",
   pgpKey: siteConfig.pgpKey,
   githubUrl: siteConfig.githubUrl,
   twitterUrl: siteConfig.twitterUrl,
@@ -193,33 +191,7 @@ const currentProfile = {
           />
         </div>
 
-        <!-- UNIX UID & TTY -->
-        <div class="grid grid-cols-2 gap-2">
-          <div class="flex flex-col space-y-1">
-            <label for="prof-uid" class="text-[11px] text-outline uppercase tracking-wider">
-              <span>system.uid</span>
-            </label>
-            <input
-              type="text"
-              id="prof-uid"
-              name="uid"
-              class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px]"
-              placeholder="0x03E8"
-            />
-          </div>
-          <div class="flex flex-col space-y-1">
-            <label for="prof-tty" class="text-[11px] text-outline uppercase tracking-wider">
-              <span>system.tty</span>
-            </label>
-            <input
-              type="text"
-              id="prof-tty"
-              name="tty"
-              class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px]"
-              placeholder="TTY:0"
-            />
-          </div>
-        </div>
+
 
         <!-- PGP Key Fingerprint -->
         <div class="flex flex-col space-y-1 sm:col-span-2">
@@ -359,12 +331,9 @@ const currentProfile = {
     function applyProfile(p) {
       profile = { ...p };
 
-      // Update Avatar ID & TTY
+      // Update Avatar Handle
       document.querySelectorAll('[data-profile-handle]').forEach((el) => {
         el.textContent = p.handle || '';
-      });
-      document.querySelectorAll('[data-profile-tty]').forEach((el) => {
-        el.textContent = p.tty || 'TTY:0';
       });
 
       // Update Author Name & Title
@@ -400,10 +369,7 @@ const currentProfile = {
         el.textContent = p.email || '';
       });
 
-      // Update Security coordinates (UID, PGP)
-      document.querySelectorAll('[data-profile-uid]').forEach((el) => {
-        el.textContent = p.uid || '';
-      });
+      // Update Security coordinates (PGP)
       document.querySelectorAll('[data-profile-pgp]').forEach((el) => {
         el.textContent = p.pgpKey || '';
       });
@@ -430,8 +396,6 @@ const currentProfile = {
       const githubInp = form.querySelector('#prof-github');
       const twitterInp = form.querySelector('#prof-twitter');
       const emailInp = form.querySelector('#prof-email');
-      const uidInp = form.querySelector('#prof-uid');
-      const ttyInp = form.querySelector('#prof-tty');
       const pgpInp = form.querySelector('#prof-pgp');
 
       if (authorInp) authorInp.value = profile.author || '';
@@ -445,8 +409,6 @@ const currentProfile = {
       if (githubInp) githubInp.value = profile.githubUrl || '';
       if (twitterInp) twitterInp.value = profile.twitterUrl || '';
       if (emailInp) emailInp.value = profile.email || '';
-      if (uidInp) uidInp.value = profile.uid || '';
-      if (ttyInp) ttyInp.value = profile.tty || '';
       if (pgpInp) pgpInp.value = profile.pgpKey || '';
     }
 
@@ -516,8 +478,6 @@ const currentProfile = {
       const twitterHandle = rawTwitter ? formatHandle(rawTwitter.replace(/https?:\/\/(twitter|x)\.com\//, '')) : profile.twitterHandle;
 
       const email = form.querySelector('#prof-email')?.value.trim() || profile.email;
-      const uid = form.querySelector('#prof-uid')?.value.trim() || profile.uid;
-      const tty = form.querySelector('#prof-tty')?.value.trim() || profile.tty;
       const pgpKey = form.querySelector('#prof-pgp')?.value.trim() || profile.pgpKey;
 
       const updated = {
@@ -528,13 +488,12 @@ const currentProfile = {
         title: `${author} // Terminal Blog`,
         description,
         siteUrl: profile.siteUrl,
-        uid,
-        tty,
         pgpKey,
         githubUrl,
         twitterUrl,
         email,
         postsPerPage: profile.postsPerPage || 10,
+        giscus: profile.giscus,
       };
 
       // Try local dev server endpoint if running
