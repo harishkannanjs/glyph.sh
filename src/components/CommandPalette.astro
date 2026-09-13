@@ -7,22 +7,31 @@ const searchData = posts.map((post) => ({
   title: post.data.title,
   description: post.data.description,
   pubDate: new Date(post.data.pubDate).toISOString().split('T')[0],
-  tags: post.data.tags,
+  tags: post.data.tags || [],
   url: `/blog/${post.id.replace(/\.(md|mdx)$/, '')}`,
 }));
+
+// Aggregate unique tags with counts (replaces /tags page)
+const tagCounts: Record<string, number> = {};
+posts.forEach((post) => {
+  (post.data.tags || []).forEach((tag) => {
+    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+  });
+});
+const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 ---
 
-<!-- Global Command Palette Modal Overlay -->
+<!-- Global Command Palette Modal Overlay with Embedded Tag Filter -->
 <div
   id="command-palette-backdrop"
-  class="hidden fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-start justify-center pt-20 px-4 transition-all"
+  class="hidden fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-start justify-center pt-16 px-4 transition-all"
   role="dialog"
   aria-modal="true"
   aria-label="Command Palette Search"
 >
   <div
     id="command-palette-box"
-    class="w-full max-w-[580px] bg-surface-container-low border border-outline-variant rounded-[2px] overflow-hidden shadow-none flex flex-col font-mono"
+    class="w-full max-w-[620px] bg-surface-container-low border border-outline-variant rounded-[2px] overflow-hidden shadow-none flex flex-col font-mono"
   >
     <!-- Prompt & Input Bar -->
     <div class="flex items-center gap-2 px-4 py-2.5 border-b border-outline-variant bg-surface-container">
@@ -31,7 +40,7 @@ const searchData = posts.map((post) => ({
         type="text"
         id="command-palette-input"
         class="flex-1 bg-transparent text-on-surface font-mono text-[13px] placeholder:text-outline focus:outline-none"
-        placeholder="search research notes, CVEs, teardowns, tags..."
+        placeholder="search articles, CVEs, or tags (e.g. #rust)..."
         autocomplete="off"
         spellcheck="false"
       />
@@ -45,21 +54,64 @@ const searchData = posts.map((post) => ({
       </button>
     </div>
 
+    <!-- Active Tag Filter Notification Banner -->
+    <div
+      id="palette-filter-banner"
+      class="hidden px-4 py-1.5 bg-primary/10 border-b border-outline-variant text-[11px] flex items-center justify-between"
+    >
+      <div class="flex items-center gap-1.5 text-primary">
+        <span class="font-bold">&gt;</span>
+        <span>Filtering by tag: <strong id="active-tag-name" class="font-semibold text-primary underline"></strong></span>
+      </div>
+      <button
+        type="button"
+        id="clear-tag-filter-btn"
+        class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer font-mono"
+      >
+        [clear tag filter ×]
+      </button>
+    </div>
+
     <!-- Results Container -->
     <div
       id="command-palette-results"
-      class="p-1.5 text-[13px] max-h-80 overflow-y-auto divide-y divide-outline-variant/30"
+      class="p-1.5 text-[13px] max-h-72 overflow-y-auto divide-y divide-outline-variant/30"
     >
-      <div class="px-3 py-2 text-[11px] text-outline uppercase tracking-wider select-none">
-        All Entries &amp; Topics
+      <div class="px-3 py-2 text-[11px] text-outline uppercase tracking-wider select-none" id="results-count-label">
+        All Articles ({searchData.length})
       </div>
       <!-- Items populated by client script -->
     </div>
 
+    <!-- Bottom: Tags Index & Quick Filter (Replaces /tags page) -->
+    <div class="p-3 border-t border-outline-variant bg-surface-container-low select-none">
+      <div class="flex items-center justify-between text-[11px] text-outline mb-2">
+        <div class="flex items-center gap-1.5 font-medium">
+          <span class="text-primary font-bold">#</span>
+          <span class="uppercase tracking-wider">Browse By Tag ({sortedTags.length})</span>
+        </div>
+        <span class="text-[10px] text-on-surface-variant">click to filter writeups</span>
+      </div>
+      <div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto" id="command-palette-tags">
+        {sortedTags.map(([tag, count]) => (
+          <button
+            type="button"
+            data-search-tag={tag}
+            class="palette-tag-btn px-2 py-0.5 bg-surface-container border border-outline-variant hover:border-primary text-on-surface-variant hover:text-primary rounded-[2px] text-[11px] font-mono flex items-center gap-1 transition-colors cursor-pointer"
+            title={`Filter by #${tag}`}
+          >
+            <span class="text-primary font-bold">#</span>
+            <span>{tag}</span>
+            <span class="text-[10px] text-outline">({count})</span>
+          </button>
+        ))}
+      </div>
+    </div>
+
     <!-- Footer Bar -->
     <div class="px-4 py-2 border-t border-outline-variant bg-surface-container-lowest text-[11px] text-outline flex items-center justify-between select-none">
-      <span>Use <kbd class="text-on-surface-variant bg-surface-container px-1 py-0.5 border border-outline-variant/50 rounded-[2px]">↑</kbd> <kbd class="text-on-surface-variant bg-surface-container px-1 py-0.5 border border-outline-variant/50 rounded-[2px]">↓</kbd> to navigate, <kbd class="text-on-surface-variant bg-surface-container px-1 py-0.5 border border-outline-variant/50 rounded-[2px]">↵</kbd> to select</span>
-      <span><kbd class="text-on-surface-variant bg-surface-container px-1 py-0.5 border border-outline-variant/50 rounded-[2px]">ESC</kbd> to close</span>
+      <span>Use <kbd class="text-on-surface-variant bg-surface-container px-1 py-0.5 border border-outline-variant/50 rounded-[2px]">↑</kbd> <kbd class="text-on-surface-variant bg-surface-container px-1 py-0.5 border border-outline-variant/50 rounded-[2px]">↓</kbd> to navigate, <kbd class="text-on-surface-variant bg-surface-container px-1 py-0.5 border border-outline-variant/50 rounded-[2px]">↵</kbd> to open</span>
+      <span><kbd class="text-on-surface-variant bg-surface-container px-1 py-0.5 border border-outline-variant/50 rounded-[2px]">ESC</kbd> to exit</span>
     </div>
   </div>
 </div>
@@ -69,6 +121,7 @@ const searchData = posts.map((post) => ({
     let activeIndex = -1;
     let filteredItems = [];
     let pagefind = null;
+    let selectedTag = null;
 
     // Load pagefind if available
     async function loadPagefind() {
@@ -88,14 +141,54 @@ const searchData = posts.map((post) => ({
         input: document.getElementById('command-palette-input'),
         closeBtn: document.getElementById('command-palette-close'),
         resultsContainer: document.getElementById('command-palette-results'),
+        filterBanner: document.getElementById('palette-filter-banner'),
+        activeTagName: document.getElementById('active-tag-name'),
+        clearFilterBtn: document.getElementById('clear-tag-filter-btn'),
+        tagButtons: document.querySelectorAll('.palette-tag-btn'),
       };
     }
 
-    function openPalette() {
+    function updateTagPillsUI() {
+      const { filterBanner, activeTagName, tagButtons } = getElements();
+      if (selectedTag) {
+        if (filterBanner) filterBanner.classList.remove('hidden');
+        if (activeTagName) activeTagName.textContent = `#${selectedTag}`;
+      } else {
+        if (filterBanner) filterBanner.classList.add('hidden');
+      }
+
+      tagButtons.forEach((btn) => {
+        const tag = btn.getAttribute('data-search-tag');
+        if (selectedTag && tag && tag.toLowerCase() === selectedTag.toLowerCase()) {
+          btn.classList.add('bg-primary/20', 'border-primary', 'text-primary', 'font-semibold');
+          btn.classList.remove('bg-surface-container', 'border-outline-variant', 'text-on-surface-variant');
+        } else {
+          btn.classList.remove('bg-primary/20', 'border-primary', 'text-primary', 'font-semibold');
+          btn.classList.add('bg-surface-container', 'border-outline-variant', 'text-on-surface-variant');
+        }
+      });
+    }
+
+    function setTagFilter(tag) {
+      if (selectedTag && tag && selectedTag.toLowerCase() === tag.toLowerCase()) {
+        selectedTag = null;
+      } else {
+        selectedTag = tag;
+      }
+      updateTagPillsUI();
+      const { input } = getElements();
+      performSearch(input ? input.value : '');
+    }
+
+    function openPalette(filterTag = null) {
       const { backdrop, input } = getElements();
       if (!backdrop || !input) return;
       backdrop.classList.remove('hidden');
       input.value = '';
+      if (filterTag) {
+        selectedTag = filterTag;
+      }
+      updateTagPillsUI();
       performSearch('');
       input.focus();
     }
@@ -107,6 +200,12 @@ const searchData = posts.map((post) => ({
       activeIndex = -1;
     }
 
+    // Expose open helpers globally so tag clicks anywhere trigger it
+    window.openSearchPalette = openPalette;
+    window.openSearchWithTag = function (tag) {
+      openPalette(tag);
+    };
+
     function renderResults(items) {
       const { resultsContainer } = getElements();
       if (!resultsContainer) return;
@@ -115,8 +214,9 @@ const searchData = posts.map((post) => ({
 
       if (items.length === 0) {
         resultsContainer.innerHTML = `
-          <div class="p-4 text-center text-outline text-[12px]">
-            No matching entries found for query.
+          <div class="p-6 text-center text-outline text-[12px] space-y-1 font-mono">
+            <div class="text-primary font-bold">&gt; No matching entries found</div>
+            <div class="text-[11px] text-on-surface-variant">Try refining your keyword or clearing the active tag filter.</div>
           </div>
         `;
         return;
@@ -137,7 +237,11 @@ const searchData = posts.map((post) => ({
               <span class="truncate text-[13px]">${item.title}</span>
             </div>
             <div class="flex items-center gap-2 shrink-0 text-[11px] text-outline">
-              ${item.tags && item.tags.length > 0 ? `<span class="bg-surface-container-high px-1.5 py-0.5 rounded-[2px] text-[10px] text-on-surface-variant hidden sm:inline">#${item.tags[0]}</span>` : ''}
+              ${
+                item.tags && item.tags.length > 0
+                  ? `<span class="bg-surface-container-high px-1.5 py-0.5 rounded-[2px] text-[10px] text-on-surface-variant hidden sm:inline">#${item.tags[0]}</span>`
+                  : ''
+              }
               <span>${item.pubDate || ''}</span>
             </div>
           </a>
@@ -145,7 +249,6 @@ const searchData = posts.map((post) => ({
         )
         .join('');
 
-      // Add click listeners to items
       const itemElements = resultsContainer.querySelectorAll('.palette-item');
       itemElements.forEach((el) => {
         el.addEventListener('mouseenter', () => {
@@ -158,7 +261,7 @@ const searchData = posts.map((post) => ({
     function updateActiveItem(newIndex) {
       const { resultsContainer } = getElements();
       if (!resultsContainer || filteredItems.length === 0) return;
-      
+
       const itemElements = resultsContainer.querySelectorAll('.palette-item');
       itemElements.forEach((el, idx) => {
         const arrow = el.querySelector('span:first-child');
@@ -175,14 +278,36 @@ const searchData = posts.map((post) => ({
     }
 
     async function performSearch(query) {
-      const q = query.trim().toLowerCase();
+      let q = query.trim().toLowerCase();
+
+      // If user typed `#tag`, detect tag query directly
+      if (q.startsWith('#')) {
+        const typedTag = q.slice(1).trim();
+        if (typedTag) {
+          const matching = initialPosts.filter((item) =>
+            (item.tags || []).some((t) => t.toLowerCase().includes(typedTag))
+          );
+          renderResults(matching);
+          return;
+        }
+      }
+
+      // 1. Base list scoped by selectedTag if active
+      let pool = initialPosts;
+      if (selectedTag) {
+        pool = initialPosts.filter((item) =>
+          (item.tags || []).some((t) => t.toLowerCase() === selectedTag.toLowerCase())
+        );
+      }
+
+      // If no query string, display scoped pool
       if (!q) {
-        renderResults(initialPosts.slice(0, 10));
+        renderResults(pool);
         return;
       }
 
-      // If pagefind is loaded and available
-      if (pagefind) {
+      // If pagefind is loaded and no tag filter is active
+      if (pagefind && !selectedTag) {
         try {
           const search = await pagefind.search(q);
           if (search && search.results && search.results.length > 0) {
@@ -203,15 +328,15 @@ const searchData = posts.map((post) => ({
             }
           }
         } catch (e) {
-          // fallback to in-memory
+          // fallback to in-memory search
         }
       }
 
-      // In-memory fallback search across titles, descriptions, and tags
-      const results = initialPosts.filter((item) => {
+      // In-memory filter on title, description, and tags
+      const results = pool.filter((item) => {
         const titleMatch = item.title.toLowerCase().includes(q);
         const descMatch = item.description.toLowerCase().includes(q);
-        const tagMatch = item.tags.some((t) => t.toLowerCase().includes(q));
+        const tagMatch = (item.tags || []).some((t) => t.toLowerCase().includes(q));
         return titleMatch || descMatch || tagMatch;
       });
 
@@ -219,10 +344,9 @@ const searchData = posts.map((post) => ({
     }
 
     function bindEvents() {
-      const { backdrop, input, closeBtn } = getElements();
+      const { backdrop, input, closeBtn, clearFilterBtn, tagButtons } = getElements();
       if (!backdrop || !input) return;
 
-      // Close when clicking outside box
       backdrop.onclick = (e) => {
         if (e.target === backdrop) closePalette();
       };
@@ -231,12 +355,22 @@ const searchData = posts.map((post) => ({
         closeBtn.onclick = () => closePalette();
       }
 
-      // Input changes
+      if (clearFilterBtn) {
+        clearFilterBtn.onclick = () => setTagFilter(null);
+      }
+
+      tagButtons.forEach((btn) => {
+        btn.onclick = (e) => {
+          e.preventDefault();
+          const tag = btn.getAttribute('data-search-tag');
+          if (tag) setTagFilter(tag);
+        };
+      });
+
       input.oninput = (e) => {
         performSearch(e.target.value);
       };
 
-      // Input key navigation
       input.onkeydown = (e) => {
         if (e.key === 'Escape') {
           e.preventDefault();
@@ -264,7 +398,7 @@ const searchData = posts.map((post) => ({
         }
       };
 
-      // Global hotkeys: Ctrl+K, Cmd+K, or "/" (unless focused on input/textarea)
+      // Global hotkeys: Ctrl+K, Cmd+K, or "/"
       window.onkeydown = (e) => {
         const isInput = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
         if ((e.key === 'k' && (e.ctrlKey || e.metaKey)) || (e.key === '/' && !isInput)) {
@@ -283,6 +417,18 @@ const searchData = posts.map((post) => ({
       const openSearchButtons = document.querySelectorAll('[data-open-search]');
       openSearchButtons.forEach((btn) => {
         btn.onclick = () => openPalette();
+      });
+
+      // Global delegation for any tag badge click across all pages
+      document.addEventListener('click', (e) => {
+        const tagBadge = e.target.closest('[data-tag-badge]');
+        if (tagBadge) {
+          e.preventDefault();
+          const tag = tagBadge.getAttribute('data-tag-badge');
+          if (tag) {
+            openPalette(tag);
+          }
+        }
       });
     }
 

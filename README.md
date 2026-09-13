@@ -1,123 +1,221 @@
-# Terminal Blog — "Terminal Monastic"
+# Terminal Blog — Catppuccin Mocha Technical Research Platform
 
-> A production-ready, security-research-focused technical blog platform built with **Astro 5**, **Tailwind CSS v4**, **MDX**, and **Pagefind**, styled using the authoritative Stitch **Terminal Monastic** design system.
+> A production-ready, high-performance technical blog and research repository built with **Astro 5**, **Tailwind CSS v4**, **MDX**, and **Pagefind**, styled strictly under the **Catppuccin Mocha** terminal aesthetic.
 
 ---
 
 ## 1. Aesthetic & Architecture
 
-- **Typography:** 100% self-hosted `JetBrains Mono` across all UI chrome, prose, code, and metadata.
-- **Color Discipline:** Obsidian canvas (`#0b141c`), hairline 1px borders (`#242b32` / `#3a444d`), and terminal phosphor emerald accents (`#3ddc84`).
-- **Elevation:** Zero `box-shadow` anywhere; depth is communicated purely through tonal surface stepping and 1px borders.
-- **Theme:** Dark mode default with persistent light mode toggle (`localStorage`). Both modes independently verified for WCAG AA contrast.
-- **Accessibility:** Full keyboard navigation support and strict `prefers-reduced-motion` compliance.
+- **Color Palette:** Authentic **Catppuccin Mocha** dark mode (`#1e1e2e` Base, `#181825` Mantle, `#11111b` Crust, `#a6e3a1` Green accents, `#cdd6f4` Text) with synchronized **Catppuccin Latte** light mode.
+- **Typography:** 100% self-hosted **JetBrains Mono** (`@fontsource/jetbrains-mono`, weights 400, 500, 700) across all UI chrome, headings, body text, and code blocks.
+- **Elevation:** Strict zero `box-shadow` (`box-shadow: none !important`); depth is established purely through tonal stepping and 1px hairline borders (`#45475a`).
+- **Interactive Terminal UI:** Blinking cursor pulse (`_`), terminal prompt prefixes (`> `, `$ `), and an authentic UNIX CLI command palette (`Ctrl+K` or `/`).
+- **Search & Unified Taxonomy:** Instant client-side fuzzy search and embedded tag exploration with zero external page transitions.
 
 ---
 
-## 2. Features Across All 4 Tiers
+## 2. Directory Structure & Content Organization
 
-### Tier 0 — Foundation
-- [x] Dynamic `/Blogs/` root directory: push multi-part series to `Blogs/series/<series_name>/` and standalone articles to `Blogs/standalone/` → automatically indexed, routed, and formatted.
-- [x] Dynamic title and series resolution from file and folder names with zero required boilerplate.
-- [x] Unified `<BlogPostLayout>` shell for all post pages.
-- [x] Dynamic reading time computed from actual word count.
-- [x] Taxonomies: filterable `/tags` directory and dynamic `/tags/[tag]` routes.
-- [x] Syntax-highlighted code blocks via Shiki with 1-click copy button and language badges.
-- [x] Responsive layout from mobile (<768px) to ultrawide (≥1400px).
-- [x] RSS 2.0 / Atom feed available at `/feed.xml` and `/rss.xml`.
-- [x] Full SEO meta tags, canonical URLs, and auto-generated `sitemap-index.xml`.
-- [x] Authentic UNIX crash terminal 404 page (`SIG_ERR: 404`).
-- [x] SVG terminal prompt favicon + default social preview image.
-- [x] Pagefind static search index built at compile time.
-- [x] Draft support (`draft: true` strictly excluded from production routes, RSS, and search).
-- [x] Auto-generated Table of Contents from headings (sticky rail ≥1280px, inline disclosure below).
+Articles are managed from the root `/Blogs` directory without complex configuration:
 
-### Tier 1 — Reading Experience
-- [x] Sticky TOC with scroll-synced active heading highlighting.
-- [x] Heading deep-link anchors with hover `#`, clipboard copy, and toast feedback.
-- [x] Sidenotes / margin notes on wide displays (≥1400px), collapsing to inline notes on narrower screens.
-- [x] Code blocks with diff view (`+`/`-` gutter markers) and copy buttons.
-- [x] Sticky 2px reading progress bar tracking scroll depth on post pages.
-- [x] Command Palette (`Ctrl+K` or `/`) with Pagefind integration, in-memory fallback, and arrow-key navigation.
-- [x] Astro native View Transitions with morph animations between post card title and article title.
+```
+├── Blogs/
+│   ├── series/
+│   │   └── <name_of_the_series>/
+│   │       ├── 01-first-part.mdx
+│   │       ├── 02-second-part.mdx
+│   │       └── ...
+│   └── standalone/
+│       ├── reverse-engineering-notes.md
+│       └── ...
+├── profile.json               <-- Single source of truth for author info & Giscus
+├── astro.config.mjs           <-- Astro & Shiki syntax configuration
+├── src/
+│   ├── components/            <-- CommandPalette, Header, Footer, GiscusComments, etc.
+│   ├── layouts/               <-- BaseLayout, BlogPostLayout
+│   ├── lib/                   <-- Dynamic blog loader & Satori OG generator
+│   ├── pages/                 <-- Index, about, profile, blog routes, RSS, feeds
+│   └── styles/
+│       └── global.css         <-- Catppuccin color variables & JetBrains Mono imports
+└── .github/
+    └── workflows/
+        └── deploy.yml         <-- Automated GitHub Pages build & deploy
+```
 
-### Tier 2 — Subject-Specific Tools
-- [x] `<Spoiler>` MDX component for CTF flags, exploit payloads, and hidden solutions.
-- [x] `<Mermaid>` MDX component for sequence diagrams, exploit chains, and state machines.
-- [x] KaTeX math rendering (`remark-math` + `rehype-katex`).
-- [x] `<Asciinema>` MDX component for recorded terminal sessions.
-- [x] First-class Series grouping with `<SeriesStrip>` progress tracker and part navigation.
+### Series Articles (`Blogs/series/<series_name>/`)
+- Place multi-part deep dives inside a subdirectory under `Blogs/series/`.
+- File naming like `01-title.md` or `02-title.mdx` automatically extracts:
+  - The series slug and clean title.
+  - The part number (e.g. Part 1, Part 2).
+  - Sibling article count for the series progress strip.
 
-### Tier 3 — Trust & Polish
-- [x] Auto-generated 1200x630 OG preview images generated per post at build time (via Satori + Resvg).
-- [x] `<ChangelogPopover>` showing revision history and syntax-highlighted code diffs.
-- [x] Copy-as-Markdown button on all post pages.
-- [x] Tag-affinity related posts recommendation matrix.
-- [x] Previous & Next post navigation cards.
-- [x] Giscus discussion section synchronized to the active dark/light theme.
+### Standalone Articles (`Blogs/standalone/`)
+- Place individual research notes, CTF write-ups, or tutorials directly inside `Blogs/standalone/`.
+- Accessible at `/blog/standalone/<slug>` and aliased to `/blog/<slug>`.
+
+### Article Frontmatter (Optional)
+Files can include YAML frontmatter, or rely on auto-inferred titles from filenames:
+
+```markdown
+---
+title: "Kernel ALPC Race Condition & Exploitation"
+description: "In-depth analysis of Windows ALPC message ports and kernel race conditions."
+pubDate: 2026-03-15
+tags: ["kernel", "windows-internals", "reverse-engineering", "c"]
+draft: false
+---
+```
 
 ---
 
-## 3. Local Development
+## 3. Quick Start (Local Development)
 
 ### Prerequisites
-- [Bun](https://bun.sh) (v1.2+)
+- [Bun](https://bun.sh) (v1.2+) or Node.js (v20+)
 
-### Install Dependencies
+### 1. Clone & Install
 ```bash
+git clone https://github.com/<your-username>/blog.git
+cd blog
 bun install
 ```
 
-### Run Local Development Server
+### 2. Disable Astro Dev Toolbar (Recommended)
+To keep your terminal view clean and distraction-free, disable Astro's floating overlay toolbar:
+```bash
+bunx astro preferences disable devToolbar
+```
+
+### 3. Start Development Server
 ```bash
 bun run dev
 ```
 Open [http://localhost:4321](http://localhost:4321) in your browser.
 
-### Type Check & Build
+### 4. Build & Preview Production
 ```bash
-# Type check and frontmatter validation
+# Type-check and validate all Astro/TypeScript files (0 errors, 0 warnings)
 bun run astro check
 
-# Static build and Pagefind search index generation
+# Compile static distribution and build Pagefind search indexes
 bun run build
-```
 
-### Preview Production Build
-```bash
+# Preview production build locally
 bun run preview
 ```
 
 ---
 
-## 4. Deployment to GitHub Pages
+## 4. Author Configuration (`profile.json`)
 
-The repository includes a ready-to-use GitHub Actions workflow in [`.github/workflows/deploy.yml`](file:///X:/Develop/blog/.github/workflows/deploy.yml).
+All identity and author details are stored directly in [`profile.json`](file:///X:/Develop/blog/profile.json) in the root of the repository:
 
-### Step 1: Configure Repository Settings
+```json
+{
+  "author": "Harish",
+  "handle": "@harishkannanjs",
+  "role": "Security Researcher & Systems Developer",
+  "twitterHandle": "@harishkannanjs",
+  "title": "Harish // Terminal Blog",
+  "description": "Security research, vulnerability analysis, and low-level systems development.",
+  "siteUrl": "https://harishkannanjs.github.io",
+  "uid": "0x03E8",
+  "tty": "TTY:0",
+  "pgpKey": "0x4E89F19C2D4A88B1EE4089C91427AF10C9347890",
+  "githubUrl": "https://github.com/harishkannanjs",
+  "twitterUrl": "https://x.com/harishkannanjs",
+  "email": "harish@research.local",
+  "postsPerPage": 10,
+  "giscus": {
+    "enabled": true,
+    "repo": "harishkannanjs/blog",
+    "repoId": "",
+    "category": "General",
+    "categoryId": ""
+  }
+}
+```
+
+> **Dynamic Editor:** When running `bun run dev`, navigate to `http://localhost:4321/profile` to edit your details in the terminal UI. Clicking **"Save to Repository"** automatically persists changes directly into `profile.json` on disk.
+
+---
+
+## 5. Setting Up Giscus (GitHub Discussions Comments)
+
+Comments and peer reviews are backed by **GitHub Discussions** via Giscus. This ensures comments are stored natively inside your GitHub repository while ensuring public visitors have **zero write access** to your codebase or GitHub Actions.
+
+### Step 1: Enable GitHub Discussions
+1. Open your repository on GitHub: `https://github.com/<your-username>/blog`.
+2. Go to **Settings** $\rightarrow$ Scroll down to **Features**.
+3. Check the box for **Discussions**.
+
+### Step 2: Install the Giscus App
+1. Go to [giscus.app](https://giscus.app) or [github.com/apps/giscus](https://github.com/apps/giscus).
+2. Click **Install** and grant access to your `blog` repository (it requires permission *only* for Discussions, never code).
+
+### Step 3: Get your Repository & Category IDs
+1. On [giscus.app](https://giscus.app), under **Configuration**, enter your repository: `<your-username>/blog`.
+2. Under **Discussion Category**, select your preferred category (e.g. `General` or `Announcements`).
+3. Scroll down to **Enable giscus** and copy your:
+   - `data-repo-id` (starts with `R_kgDO...`)
+   - `data-category-id` (starts with `DIC_kwDO...`)
+
+### Step 4: Add IDs to `profile.json`
+Open [`profile.json`](file:///X:/Develop/blog/profile.json) and paste your credentials:
+```json
+"giscus": {
+  "enabled": true,
+  "repo": "<your-username>/blog",
+  "repoId": "R_kgDO...",
+  "category": "General",
+  "categoryId": "DIC_kwDO..."
+}
+```
+Commit and push. Embedded discussions will automatically activate under every article. If not yet configured, a clean fallback card directs readers to your repository Discussions tab without broken iframe errors.
+
+---
+
+## 6. Deployment to GitHub Pages (`github.io`)
+
+The repository includes an automated GitHub Actions deployment workflow at [`.github/workflows/deploy.yml`](file:///X:/Develop/blog/.github/workflows/deploy.yml).
+
+### Step 1: Enable GitHub Pages via Actions
 1. Open your repository on GitHub.
-2. Navigate to **Settings** → **Pages**.
-3. Under **Build and deployment** → **Source**, select **GitHub Actions**.
+2. Navigate to **Settings** $\rightarrow$ **Pages**.
+3. Under **Build and deployment** $\rightarrow$ **Source**, choose **GitHub Actions**.
 
-### Step 2: Configure Your Domain in `astro.config.mjs`
-Open [`astro.config.mjs`](file:///X:/Develop/blog/astro.config.mjs) and update the `site` property with your actual GitHub username:
+### Step 2: Set Your Domain in `astro.config.mjs`
+Update the `site` property in [`astro.config.mjs`](file:///X:/Develop/blog/astro.config.mjs):
 ```javascript
 export default defineConfig({
-  site: 'https://<your-github-username>.github.io',
+  site: 'https://<your-username>.github.io',
   output: 'static',
   // ...
 });
 ```
 
-### Step 3: Deploy
-Push your commits to the `main` branch:
+### Step 3: Push to GitHub
 ```bash
+git add .
+git commit -m "chore: setup blog configuration"
 git push origin main
 ```
-The GitHub Action will automatically run `bun install`, `astro check`, `astro build`, generate the Pagefind index, and deploy to GitHub Pages.
+The GitHub Action will automatically:
+1. Check out the repository.
+2. Install dependencies via Bun.
+3. Validate types and frontmatter with `astro check`.
+4. Compile static HTML with `astro build`.
+5. Generate the Pagefind static search index.
+6. Deploy the `dist/` directory to GitHub Pages.
 
 ---
 
-## 5. Post Migration
+## 7. Features & Interactive Tools
 
-For details on migrating your existing notes and write-ups into the blog, refer to [`MIGRATION.md`](file:///X:/Develop/blog/MIGRATION.md).
+- **Unified Search & Tag Explorer (`Ctrl+K` or `/`):** Fast in-memory and Pagefind search with a bottom tag taxonomy explorer. Filter write-ups by clicking any tag pill or typing `#tag`.
+- **Sticky Scroll-Synced TOC:** Automatically follows reading progress with active heading indicators.
+- **Code Highlighting (Shiki):** Pre-configured with Catppuccin Mocha (dark) and Catppuccin Latte (light) with 1-click copy buttons and line diff markers (`+`/`-`).
+- **Diagrams (`<Mermaid>`):** Dynamic architecture, sequence, and exploit chain diagrams styled in Catppuccin Mocha tokens.
+- **Terminal Replays (`<Asciinema>`):** Interactive terminal recording player for shell demonstrations.
+- **Mathematics (KaTeX):** Full LaTeX math equations supported via `remark-math` and `rehype-katex`.
+- **Dynamic OpenGraph Images:** High-resolution 1200x630 social preview cards generated dynamically per write-up at compile time via Satori.
