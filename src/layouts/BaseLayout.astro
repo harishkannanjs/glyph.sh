@@ -80,5 +80,29 @@ const resolvedOgImage = new URL(image, Astro.site || Astro.url.origin).href;
 
     <Footer />
     <CommandPalette />
+
+    <!-- Synchronize dynamic profile overrides to header chrome across entire site -->
+    <script is:inline>
+      function syncHeaderProfile() {
+        try {
+          const raw = localStorage.getItem('terminal_blog_profile');
+          if (!raw) return;
+          const data = JSON.parse(raw);
+          if (data && data.author) {
+            document.querySelectorAll('[data-author-brand]').forEach(function(el) {
+              el.textContent = data.author.toLowerCase();
+            });
+          }
+          if (data && data.uid) {
+            document.querySelectorAll('[data-author-uid]').forEach(function(el) {
+              el.setAttribute('title', 'Identity // UID: ' + data.uid);
+            });
+          }
+        } catch (e) {}
+      }
+      syncHeaderProfile();
+      document.addEventListener('astro:page-load', syncHeaderProfile);
+      window.addEventListener('profile-updated', syncHeaderProfile);
+    </script>
   </body>
 </html>

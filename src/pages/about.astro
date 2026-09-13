@@ -3,6 +3,7 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import PostCard from '@/components/PostCard.astro';
 import TagBadge from '@/components/TagBadge.astro';
+import ProfileEditor from '@/components/ProfileEditor.astro';
 import { siteConfig } from '@/site.config';
 import { getReadingTime } from '@/lib/reading-time';
 
@@ -38,11 +39,21 @@ const authorTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
 <BaseLayout title={`Profile // ${siteConfig.author}`} activePath="/about">
   <div class="max-w-[720px] mx-auto px-4 md:px-0 py-8 font-mono">
     <div class="flex flex-col space-y-10">
-      <!-- Terminal Prompt Context -->
-      <section class="flex flex-col space-y-2">
-        <div class="flex items-center gap-2 text-primary text-[13px]">
-          <span class="font-bold">$</span>
-          <span class="text-on-surface">whoami --profile</span>
+      <!-- Terminal Prompt Context & Dynamic Profile Actions -->
+      <section class="flex flex-col space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2 text-primary text-[13px]">
+            <span class="font-bold">$</span>
+            <span class="text-on-surface">whoami --profile</span>
+            <span
+              id="profile-custom-badge"
+              class="hidden px-1.5 py-0.2 text-[10px] bg-primary/10 text-primary border border-primary/30 rounded-[2px]"
+              title="Custom local profile override active in this browser"
+            >
+              ● local custom
+            </span>
+          </div>
+          <ProfileEditor />
         </div>
         <h1 class="text-[26px] sm:text-[28px] text-on-surface font-semibold tracking-tight">
           Author Profile
@@ -55,26 +66,26 @@ const authorTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
         <div class="w-[100px] h-[100px] shrink-0 bg-surface-container border border-outline-variant relative p-1 select-none flex flex-col justify-between">
           <div class="flex justify-between items-center text-outline text-[10px]">
             <span>ID</span>
-            <span class="text-primary font-bold">{siteConfig.handle}</span>
+            <span class="text-primary font-bold" data-profile-handle>{siteConfig.handle}</span>
           </div>
           <div class="flex flex-col items-center justify-center my-auto">
             <span class="text-primary text-[28px] font-bold leading-none">&gt;_</span>
           </div>
-          <div class="text-right text-[9px] text-outline leading-none">TTY:0</div>
+          <div class="text-right text-[9px] text-outline leading-none" data-profile-tty>{siteConfig.tty || 'TTY:0'}</div>
         </div>
 
         <!-- Author Bio & Coordinates -->
         <div class="flex flex-col space-y-3 flex-1 text-[13px] text-on-surface-variant leading-relaxed">
           <div>
-            <h2 class="text-[18px] text-on-surface font-semibold tracking-tight">
+            <h2 class="text-[18px] text-on-surface font-semibold tracking-tight" data-profile-author>
               {siteConfig.author}
             </h2>
-            <p class="text-[12px] text-primary mt-0.5">
-              Security Researcher &amp; Systems Developer
+            <p class="text-[12px] text-primary mt-0.5" data-profile-role>
+              {siteConfig.role}
             </p>
           </div>
 
-          <p>
+          <p data-profile-bio>
             {siteConfig.description}
           </p>
 
@@ -84,8 +95,9 @@ const authorTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
               target="_blank"
               rel="noopener noreferrer"
               class="text-on-surface hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1 font-medium"
+              data-profile-github-link
             >
-              <span>GitHub: {siteConfig.handle}</span>
+              <span data-profile-github-text>GitHub: {siteConfig.handle}</span>
             </a>
             <span class="text-outline">·</span>
             <a
@@ -93,8 +105,17 @@ const authorTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
               target="_blank"
               rel="noopener noreferrer"
               class="text-on-surface hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1 font-medium"
+              data-profile-twitter-link
             >
-              <span>Twitter: {siteConfig.twitterHandle}</span>
+              <span data-profile-twitter-text>Twitter: {siteConfig.twitterHandle}</span>
+            </a>
+            <span class="text-outline">·</span>
+            <a
+              href={`mailto:${siteConfig.email}`}
+              class="text-on-surface hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1 font-medium"
+              data-profile-email-link
+            >
+              <span data-profile-email-text>{siteConfig.email}</span>
             </a>
             <span class="text-outline">·</span>
             <a
@@ -103,6 +124,18 @@ const authorTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
             >
               <span>RSS Feed</span>
             </a>
+          </div>
+
+          <!-- Security Credentials Row (UID, PGP) -->
+          <div class="flex flex-wrap items-center gap-4 pt-2 border-t border-outline-variant/60 text-[11px] text-outline">
+            <div class="flex items-center gap-1.5">
+              <span class="text-primary font-bold">UID:</span>
+              <span class="font-mono text-on-surface-variant" data-profile-uid>{siteConfig.uid}</span>
+            </div>
+            <div class="flex items-center gap-1.5 truncate max-w-full">
+              <span class="text-primary font-bold">PGP:</span>
+              <span class="font-mono text-on-surface-variant truncate" data-profile-pgp>{siteConfig.pgpKey}</span>
+            </div>
           </div>
         </div>
       </section>
@@ -188,7 +221,7 @@ const authorTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
         <div class="flex items-center justify-between text-[11px] text-outline uppercase tracking-wider">
           <div class="flex items-center gap-2">
             <span class="text-primary font-bold">&gt;</span>
-            <span>Published Posts by {siteConfig.author}</span>
+            <span data-profile-posts-author>Published Posts by {siteConfig.author}</span>
           </div>
           <span class="text-outline font-mono text-[11px]">{userPosts.length} entries</span>
         </div>

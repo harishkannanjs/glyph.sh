@@ -1,0 +1,808 @@
+---
+import { siteConfig } from '@/site.config';
+
+// Default configuration serialized for client hydration
+const defaultConfig = {
+  author: siteConfig.author,
+  handle: siteConfig.handle,
+  role: siteConfig.role || "Security Researcher & Systems Developer",
+  twitterHandle: siteConfig.twitterHandle,
+  description: siteConfig.description,
+  siteUrl: siteConfig.siteUrl,
+  uid: siteConfig.uid,
+  tty: siteConfig.tty || "TTY:0",
+  pgpKey: siteConfig.pgpKey,
+  githubUrl: siteConfig.githubUrl,
+  twitterUrl: siteConfig.twitterUrl,
+  email: siteConfig.email,
+};
+---
+
+<!-- Profile Editor Toolbar Actions -->
+<div class="flex items-center gap-2 font-mono">
+  <button
+    id="edit-profile-btn"
+    type="button"
+    class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-container border border-outline-variant hover:border-primary text-primary hover:text-primary text-[11px] rounded-[2px] cursor-pointer transition-colors"
+    title="Edit your profile details (shortcut: 'e')"
+  >
+    <span class="font-bold">&gt;</span>
+    <span>$ edit-profile</span>
+    <kbd class="hidden sm:inline px-1 py-0.2 bg-surface-container-high text-outline text-[9px] border border-outline-variant rounded-[2px]">e</kbd>
+  </button>
+
+  <button
+    id="reset-profile-btn"
+    type="button"
+    class="hidden inline-flex items-center gap-1 px-2 py-1 bg-surface-container border border-outline-variant hover:border-error text-error text-[11px] rounded-[2px] cursor-pointer transition-colors"
+    title="Reset profile back to default site config"
+  >
+    <span>↺ reset</span>
+  </button>
+
+  <button
+    id="export-config-btn"
+    type="button"
+    class="inline-flex items-center gap-1 px-2 py-1 bg-surface-container border border-outline-variant hover:border-outline text-on-surface-variant hover:text-on-surface text-[11px] rounded-[2px] cursor-pointer transition-colors"
+    title="Export profile configuration as TypeScript snippet"
+  >
+    <span>⎘ export</span>
+  </button>
+</div>
+
+<!-- Floating Terminal Toast Notification -->
+<div
+  id="profile-toast"
+  class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-200 pointer-events-none bg-surface-container-highest border border-primary text-primary text-[12px] font-mono px-3.5 py-2 rounded-[2px] shadow-lg flex items-center gap-2"
+  role="status"
+  aria-live="polite"
+>
+  <span class="font-bold text-primary" id="profile-toast-icon">✔</span>
+  <span class="text-on-surface" id="profile-toast-msg">Profile updated</span>
+</div>
+
+<!-- Interactive Profile Editor Modal Dialog -->
+<div
+  id="profile-editor-modal"
+  class="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 hidden font-mono"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="editor-title"
+>
+  <div class="w-full max-w-[680px] max-h-[90vh] flex flex-col bg-surface border border-outline rounded-[2px] shadow-2xl overflow-hidden">
+    <!-- Terminal Header Bar -->
+    <div class="flex items-center justify-between px-4 py-2.5 bg-surface-container border-b border-outline-variant select-none">
+      <div class="flex items-center gap-2 text-[12px]">
+        <span class="w-2.5 h-2.5 rounded-full bg-error inline-block"></span>
+        <span class="w-2.5 h-2.5 rounded-full bg-primary inline-block"></span>
+        <span class="w-2.5 h-2.5 rounded-full bg-outline inline-block"></span>
+        <span id="editor-title" class="font-semibold text-on-surface ml-1">
+          ~/etc/profile.json [nano/vim mode]
+        </span>
+      </div>
+      <button
+        id="close-editor-btn"
+        type="button"
+        class="text-on-surface-variant hover:text-primary text-[14px] leading-none px-1.5 py-0.5 border border-transparent hover:border-outline-variant rounded-[2px] cursor-pointer"
+        title="Close editor (Esc)"
+      >
+        ✕
+      </button>
+    </div>
+
+    <!-- Terminal Editor Body / Form -->
+    <form id="profile-editor-form" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-[12px]">
+      <div class="p-2.5 bg-surface-container-lowest border border-outline-variant text-[11px] text-on-surface-variant leading-relaxed">
+        <span class="text-primary font-bold"># NOTE:</span> Changes are dynamically saved to your browser's <code class="text-primary">localStorage</code> and update the live profile and blog chrome instantly. You can also export the generated code directly to <code class="text-primary">src/site.config.ts</code>.
+      </div>
+
+      <!-- Two-column Grid of Profile Inputs -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        <!-- Display Name -->
+        <div class="flex flex-col space-y-1">
+          <label for="prof-author" class="text-[11px] text-outline uppercase tracking-wider flex justify-between">
+            <span>author.name</span>
+            <span class="text-primary font-bold">*</span>
+          </label>
+          <input
+            type="text"
+            id="prof-author"
+            name="author"
+            required
+            class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px]"
+            placeholder="e.g. Harish"
+          />
+        </div>
+
+        <!-- Handle -->
+        <div class="flex flex-col space-y-1">
+          <label for="prof-handle" class="text-[11px] text-outline uppercase tracking-wider flex justify-between">
+            <span>author.handle</span>
+            <span class="text-primary font-bold">*</span>
+          </label>
+          <input
+            type="text"
+            id="prof-handle"
+            name="handle"
+            required
+            class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px]"
+            placeholder="e.g. @harish"
+          />
+        </div>
+
+        <!-- Professional Role / Subtitle -->
+        <div class="flex flex-col space-y-1 sm:col-span-2">
+          <label for="prof-role" class="text-[11px] text-outline uppercase tracking-wider">
+            <span>author.role</span>
+          </label>
+          <input
+            type="text"
+            id="prof-role"
+            name="role"
+            class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px]"
+            placeholder="e.g. Security Researcher & Systems Developer"
+          />
+        </div>
+
+        <!-- Bio / Description -->
+        <div class="flex flex-col space-y-1 sm:col-span-2">
+          <label for="prof-description" class="text-[11px] text-outline uppercase tracking-wider flex justify-between">
+            <span>author.bio</span>
+            <span id="prof-bio-count" class="text-outline text-[10px]">0 chars</span>
+          </label>
+          <textarea
+            id="prof-description"
+            name="description"
+            rows="3"
+            class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none p-2.5 text-on-surface text-[12px] rounded-[2px] resize-y leading-relaxed"
+            placeholder="Brief bio or research summary..."
+          ></textarea>
+        </div>
+
+        <!-- GitHub Handle / URL -->
+        <div class="flex flex-col space-y-1">
+          <label for="prof-github" class="text-[11px] text-outline uppercase tracking-wider">
+            <span>author.github</span>
+          </label>
+          <input
+            type="text"
+            id="prof-github"
+            name="github"
+            class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px]"
+            placeholder="Username or https://github.com/..."
+          />
+        </div>
+
+        <!-- Twitter / X Handle / URL -->
+        <div class="flex flex-col space-y-1">
+          <label for="prof-twitter" class="text-[11px] text-outline uppercase tracking-wider">
+            <span>author.twitter</span>
+          </label>
+          <input
+            type="text"
+            id="prof-twitter"
+            name="twitter"
+            class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px]"
+            placeholder="@handle or https://x.com/..."
+          />
+        </div>
+
+        <!-- Email -->
+        <div class="flex flex-col space-y-1">
+          <label for="prof-email" class="text-[11px] text-outline uppercase tracking-wider">
+            <span>author.email</span>
+          </label>
+          <input
+            type="email"
+            id="prof-email"
+            name="email"
+            class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px]"
+            placeholder="e.g. harish@research.local"
+          />
+        </div>
+
+        <!-- UNIX UID & TTY -->
+        <div class="grid grid-cols-2 gap-2">
+          <div class="flex flex-col space-y-1">
+            <label for="prof-uid" class="text-[11px] text-outline uppercase tracking-wider">
+              <span>system.uid</span>
+            </label>
+            <input
+              type="text"
+              id="prof-uid"
+              name="uid"
+              class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px]"
+              placeholder="0x03E8"
+            />
+          </div>
+          <div class="flex flex-col space-y-1">
+            <label for="prof-tty" class="text-[11px] text-outline uppercase tracking-wider">
+              <span>system.tty</span>
+            </label>
+            <input
+              type="text"
+              id="prof-tty"
+              name="tty"
+              class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px]"
+              placeholder="TTY:0"
+            />
+          </div>
+        </div>
+
+        <!-- PGP Key Fingerprint -->
+        <div class="flex flex-col space-y-1 sm:col-span-2">
+          <label for="prof-pgp" class="text-[11px] text-outline uppercase tracking-wider">
+            <span>security.pgpKey</span>
+          </label>
+          <input
+            type="text"
+            id="prof-pgp"
+            name="pgp"
+            class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px] font-mono"
+            placeholder="0x4E89F19C2D4A88B1EE4089C91427AF10C9347890"
+          />
+        </div>
+      </div>
+
+      <!-- Backup / Restore Tools -->
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-outline-variant text-[11px]">
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            id="prof-download-json-btn"
+            class="px-2 py-1 bg-surface-container border border-outline-variant hover:border-outline text-on-surface-variant hover:text-on-surface rounded-[2px] transition-colors cursor-pointer"
+          >
+            ⤓ Download JSON
+          </button>
+          <label
+            for="prof-import-file"
+            class="px-2 py-1 bg-surface-container border border-outline-variant hover:border-outline text-on-surface-variant hover:text-on-surface rounded-[2px] transition-colors cursor-pointer"
+          >
+            ⤒ Import JSON
+          </label>
+          <input type="file" id="prof-import-file" accept="application/json" class="hidden" />
+        </div>
+        <span class="text-outline text-[10px]">Ctrl+Enter to save</span>
+      </div>
+
+      <!-- Modal Actions Footer -->
+      <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-outline-variant">
+        <button
+          type="button"
+          id="prof-form-reset-btn"
+          class="px-3 py-1.5 bg-surface-container border border-outline-variant hover:border-error text-error text-[11px] rounded-[2px] cursor-pointer transition-colors"
+        >
+          ↺ Reset Defaults
+        </button>
+
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            id="cancel-editor-btn"
+            class="px-3 py-1.5 bg-surface-container border border-outline-variant hover:border-outline text-on-surface text-[11px] rounded-[2px] cursor-pointer transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="px-4 py-1.5 bg-primary text-on-primary font-semibold text-[11px] rounded-[2px] cursor-pointer hover:opacity-90 transition-opacity flex items-center gap-1.5"
+          >
+            <span>✔</span>
+            <span>Save &amp; Apply</span>
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Export Config Snippet Modal -->
+<div
+  id="profile-export-modal"
+  class="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 hidden font-mono"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="export-title"
+>
+  <div class="w-full max-w-[620px] max-h-[85vh] flex flex-col bg-surface border border-outline rounded-[2px] shadow-2xl overflow-hidden">
+    <div class="flex items-center justify-between px-4 py-2.5 bg-surface-container border-b border-outline-variant select-none">
+      <div class="flex items-center gap-2 text-[12px]">
+        <span class="text-primary font-bold">&gt;</span>
+        <span id="export-title" class="font-semibold text-on-surface">
+          src/site.config.ts (Generated Config)
+        </span>
+      </div>
+      <button
+        id="close-export-btn"
+        type="button"
+        class="text-on-surface-variant hover:text-primary text-[14px] leading-none px-1.5 py-0.5 border border-transparent hover:border-outline-variant rounded-[2px] cursor-pointer"
+        title="Close (Esc)"
+      >
+        ✕
+      </button>
+    </div>
+
+    <div class="p-4 sm:p-5 flex-1 overflow-y-auto space-y-3 text-[12px]">
+      <p class="text-[11px] text-outline">
+        To persist your edited profile permanently across all git builds and deployments, copy this snippet and replace <code class="text-primary">src/site.config.ts</code> in your project:
+      </p>
+
+      <div class="relative group">
+        <pre class="p-3 bg-surface-container-lowest border border-outline-variant text-[11px] text-on-surface overflow-x-auto rounded-[2px] leading-relaxed select-all" id="export-code-block"></pre>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end gap-2 px-4 py-3 bg-surface-container border-t border-outline-variant">
+      <button
+        type="button"
+        id="close-export-btn-2"
+        class="px-3 py-1.5 bg-surface-container border border-outline-variant hover:border-outline text-on-surface text-[11px] rounded-[2px] cursor-pointer transition-colors"
+      >
+        Close
+      </button>
+      <button
+        type="button"
+        id="copy-export-code-btn"
+        class="px-3.5 py-1.5 bg-primary text-on-primary font-semibold text-[11px] rounded-[2px] cursor-pointer hover:opacity-90 transition-opacity flex items-center gap-1.5"
+      >
+        <span id="copy-export-icon">⎘</span>
+        <span id="copy-export-text">Copy Code</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script is:inline define:vars={{ defaultConfig }}>
+  (function () {
+    const STORAGE_KEY = 'terminal_blog_profile';
+
+    // Get current effective profile (stored override or fallback to default)
+    function getStoredProfile() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {
+        console.error('Error reading stored profile:', e);
+      }
+      return null;
+    }
+
+    function getEffectiveProfile() {
+      const stored = getStoredProfile();
+      return { ...defaultConfig, ...(stored || {}) };
+    }
+
+    // Show temporary terminal toast
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('profile-toast');
+      const msgEl = document.getElementById('profile-toast-msg');
+      const iconEl = document.getElementById('profile-toast-icon');
+      if (!toast || !msgEl || !iconEl) return;
+
+      msgEl.textContent = message;
+      iconEl.textContent = isError ? '✕' : '✔';
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      if (window._profileToastTimeout) clearTimeout(window._profileToastTimeout);
+      window._profileToastTimeout = setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3200);
+    }
+
+    // Apply profile data to all target DOM elements
+    function applyProfile(profile) {
+      const isCustom = !!getStoredProfile();
+
+      // Update badge and reset button visibility
+      const customBadge = document.getElementById('profile-custom-badge');
+      if (customBadge) {
+        customBadge.classList.toggle('hidden', !isCustom);
+      }
+
+      const resetBtn = document.getElementById('reset-profile-btn');
+      if (resetBtn) {
+        resetBtn.classList.toggle('hidden', !isCustom);
+      }
+
+      // Update Avatar ID & TTY
+      document.querySelectorAll('[data-profile-handle]').forEach((el) => {
+        el.textContent = profile.handle || defaultConfig.handle;
+      });
+      document.querySelectorAll('[data-profile-tty]').forEach((el) => {
+        el.textContent = profile.tty || defaultConfig.tty;
+      });
+
+      // Update Author Name & Title
+      document.querySelectorAll('[data-profile-author]').forEach((el) => {
+        el.textContent = profile.author || defaultConfig.author;
+      });
+      document.querySelectorAll('[data-profile-role]').forEach((el) => {
+        el.textContent = profile.role || defaultConfig.role;
+      });
+      document.querySelectorAll('[data-profile-bio]').forEach((el) => {
+        el.textContent = profile.description || defaultConfig.description;
+      });
+
+      // Update Social & Contact links
+      document.querySelectorAll('[data-profile-github-link]').forEach((el) => {
+        el.href = profile.githubUrl || defaultConfig.githubUrl;
+      });
+      document.querySelectorAll('[data-profile-github-text]').forEach((el) => {
+        el.textContent = `GitHub: ${profile.handle || defaultConfig.handle}`;
+      });
+
+      document.querySelectorAll('[data-profile-twitter-link]').forEach((el) => {
+        el.href = profile.twitterUrl || defaultConfig.twitterUrl;
+      });
+      document.querySelectorAll('[data-profile-twitter-text]').forEach((el) => {
+        el.textContent = `Twitter: ${profile.twitterHandle || defaultConfig.twitterHandle}`;
+      });
+
+      document.querySelectorAll('[data-profile-email-link]').forEach((el) => {
+        el.href = `mailto:${profile.email || defaultConfig.email}`;
+      });
+      document.querySelectorAll('[data-profile-email-text]').forEach((el) => {
+        el.textContent = profile.email || defaultConfig.email;
+      });
+
+      // Update Security coordinates (UID, PGP)
+      document.querySelectorAll('[data-profile-uid]').forEach((el) => {
+        el.textContent = profile.uid || defaultConfig.uid;
+      });
+      document.querySelectorAll('[data-profile-pgp]').forEach((el) => {
+        el.textContent = profile.pgpKey || defaultConfig.pgpKey;
+      });
+
+      // Update Section Header: "Published Posts by {author}"
+      document.querySelectorAll('[data-profile-posts-author]').forEach((el) => {
+        el.textContent = `Published Posts by ${profile.author || defaultConfig.author}`;
+      });
+
+      // Update Header Brand and UID link
+      document.querySelectorAll('[data-author-brand]').forEach((el) => {
+        el.textContent = (profile.author || defaultConfig.author).toLowerCase();
+      });
+      document.querySelectorAll('[data-author-uid]').forEach((el) => {
+        el.setAttribute('title', `Identity // UID: ${profile.uid || defaultConfig.uid}`);
+      });
+
+      // Update Document Title if on profile page
+      if (window.location.pathname.startsWith('/about') || window.location.pathname.startsWith('/profile')) {
+        document.title = `Profile // ${profile.author || defaultConfig.author}`;
+      }
+
+      // Dispatch custom window event
+      window.dispatchEvent(new CustomEvent('profile-updated', { detail: profile }));
+    }
+
+    // Populate the form with current effective values
+    function populateForm() {
+      const p = getEffectiveProfile();
+      const form = document.getElementById('profile-editor-form');
+      if (!form) return;
+
+      const authorInp = form.querySelector('#prof-author');
+      const handleInp = form.querySelector('#prof-handle');
+      const roleInp = form.querySelector('#prof-role');
+      const bioInp = form.querySelector('#prof-description');
+      const githubInp = form.querySelector('#prof-github');
+      const twitterInp = form.querySelector('#prof-twitter');
+      const emailInp = form.querySelector('#prof-email');
+      const uidInp = form.querySelector('#prof-uid');
+      const ttyInp = form.querySelector('#prof-tty');
+      const pgpInp = form.querySelector('#prof-pgp');
+
+      if (authorInp) authorInp.value = p.author || '';
+      if (handleInp) handleInp.value = p.handle || '';
+      if (roleInp) roleInp.value = p.role || '';
+      if (bioInp) {
+        bioInp.value = p.description || '';
+        const countEl = document.getElementById('prof-bio-count');
+        if (countEl) countEl.textContent = `${bioInp.value.length} chars`;
+      }
+      if (githubInp) githubInp.value = p.githubUrl || '';
+      if (twitterInp) twitterInp.value = p.twitterUrl || '';
+      if (emailInp) emailInp.value = p.email || '';
+      if (uidInp) uidInp.value = p.uid || '';
+      if (ttyInp) ttyInp.value = p.tty || '';
+      if (pgpInp) pgpInp.value = p.pgpKey || '';
+    }
+
+    // Generate TypeScript config snippet
+    function generateConfigSnippet(p) {
+      const escapedBio = (p.description || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      return `export const siteConfig = {
+  author: "${p.author || defaultConfig.author}",
+  handle: "${p.handle || defaultConfig.handle}",
+  role: "${p.role || defaultConfig.role}",
+  twitterHandle: "${p.twitterHandle || defaultConfig.twitterHandle}",
+  title: "${p.author || defaultConfig.author} // Terminal Blog",
+  description: "${escapedBio}",
+  siteUrl: "${defaultConfig.siteUrl}",
+  uid: "${p.uid || defaultConfig.uid}",
+  tty: "${p.tty || defaultConfig.tty}",
+  pgpKey: "${p.pgpKey || defaultConfig.pgpKey}",
+  githubUrl: "${p.githubUrl || defaultConfig.githubUrl}",
+  twitterUrl: "${p.twitterUrl || defaultConfig.twitterUrl}",
+  email: "${p.email || defaultConfig.email}",
+  postsPerPage: 10,
+};
+`;
+    }
+
+    // Modal open/close handlers
+    function openEditorModal() {
+      populateForm();
+      const modal = document.getElementById('profile-editor-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        const firstInput = modal.querySelector('#prof-author');
+        if (firstInput) firstInput.focus();
+      }
+    }
+
+    function closeEditorModal() {
+      const modal = document.getElementById('profile-editor-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function openExportModal() {
+      const p = getEffectiveProfile();
+      const codeBlock = document.getElementById('export-code-block');
+      if (codeBlock) {
+        codeBlock.textContent = generateConfigSnippet(p);
+      }
+      const modal = document.getElementById('profile-export-modal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeExportModal() {
+      const modal = document.getElementById('profile-export-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    // Normalize handle and URLs
+    function formatHandle(str) {
+      if (!str) return '@unknown';
+      str = str.trim();
+      return str.startsWith('@') ? str : `@${str}`;
+    }
+
+    function formatUrl(str, fallbackBase) {
+      if (!str) return fallbackBase;
+      str = str.trim();
+      if (str.startsWith('http://') || str.startsWith('https://')) return str;
+      const clean = str.replace(/^@/, '');
+      return `${fallbackBase.replace(/\/+$/, '')}/${clean}`;
+    }
+
+    function handleSave(e) {
+      if (e) e.preventDefault();
+      const form = document.getElementById('profile-editor-form');
+      if (!form) return;
+
+      const author = form.querySelector('#prof-author')?.value.trim();
+      if (!author) {
+        showToast('Author name is required', true);
+        return;
+      }
+
+      const rawHandle = form.querySelector('#prof-handle')?.value.trim() || defaultConfig.handle;
+      const handle = formatHandle(rawHandle);
+      const role = form.querySelector('#prof-role')?.value.trim() || defaultConfig.role;
+      const description = form.querySelector('#prof-description')?.value.trim() || defaultConfig.description;
+      const rawGithub = form.querySelector('#prof-github')?.value.trim();
+      const githubUrl = formatUrl(rawGithub, defaultConfig.githubUrl);
+
+      const rawTwitter = form.querySelector('#prof-twitter')?.value.trim();
+      const twitterUrl = formatUrl(rawTwitter, defaultConfig.twitterUrl);
+      const twitterHandle = rawTwitter ? formatHandle(rawTwitter.replace(/https?:\/\/(twitter|x)\.com\//, '')) : defaultConfig.twitterHandle;
+
+      const email = form.querySelector('#prof-email')?.value.trim() || defaultConfig.email;
+      const uid = form.querySelector('#prof-uid')?.value.trim() || defaultConfig.uid;
+      const tty = form.querySelector('#prof-tty')?.value.trim() || defaultConfig.tty;
+      const pgpKey = form.querySelector('#prof-pgp')?.value.trim() || defaultConfig.pgpKey;
+
+      const updated = {
+        author,
+        handle,
+        role,
+        description,
+        githubUrl,
+        twitterUrl,
+        twitterHandle,
+        email,
+        uid,
+        tty,
+        pgpKey,
+      };
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        applyProfile(updated);
+        closeEditorModal();
+        showToast('Profile saved & applied to terminal session');
+      } catch (err) {
+        console.error('Failed to save profile:', err);
+        showToast('Failed to save to localStorage', true);
+      }
+    }
+
+    function handleReset() {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        applyProfile(defaultConfig);
+        closeEditorModal();
+        showToast('Profile restored to site defaults');
+      } catch (err) {
+        console.error('Failed to reset profile:', err);
+      }
+    }
+
+    // JSON export / import
+    function downloadJson() {
+      const p = getEffectiveProfile();
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(p, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute('href', dataStr);
+      downloadAnchor.setAttribute('download', `profile_${(p.author || 'author').toLowerCase().replace(/\s+/g, '_')}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast('profile.json downloaded');
+    }
+
+    function importJson(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target?.result);
+          if (typeof parsed !== 'object' || !parsed) throw new Error('Invalid JSON format');
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+          applyProfile(getEffectiveProfile());
+          populateForm();
+          showToast('Profile imported successfully');
+        } catch (err) {
+          showToast('Failed to parse JSON file', true);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // Attach all event listeners
+    function initProfileEditor() {
+      applyProfile(getEffectiveProfile());
+
+      const editBtn = document.getElementById('edit-profile-btn');
+      if (editBtn) {
+        editBtn.onclick = openEditorModal;
+      }
+
+      const resetBtn = document.getElementById('reset-profile-btn');
+      if (resetBtn) {
+        resetBtn.onclick = handleReset;
+      }
+
+      const formResetBtn = document.getElementById('prof-form-reset-btn');
+      if (formResetBtn) {
+        formResetBtn.onclick = handleReset;
+      }
+
+      const exportBtn = document.getElementById('export-config-btn');
+      if (exportBtn) {
+        exportBtn.onclick = openExportModal;
+      }
+
+      const closeEditorBtn = document.getElementById('close-editor-btn');
+      if (closeEditorBtn) {
+        closeEditorBtn.onclick = closeEditorModal;
+      }
+
+      const cancelEditorBtn = document.getElementById('cancel-editor-btn');
+      if (cancelEditorBtn) {
+        cancelEditorBtn.onclick = closeEditorModal;
+      }
+
+      const closeExportBtn = document.getElementById('close-export-btn');
+      if (closeExportBtn) {
+        closeExportBtn.onclick = closeExportModal;
+      }
+
+      const closeExportBtn2 = document.getElementById('close-export-btn-2');
+      if (closeExportBtn2) {
+        closeExportBtn2.onclick = closeExportModal;
+      }
+
+      const copyExportBtn = document.getElementById('copy-export-code-btn');
+      if (copyExportBtn) {
+        copyExportBtn.onclick = async () => {
+          const codeEl = document.getElementById('export-code-block');
+          if (codeEl) {
+            try {
+              await navigator.clipboard.writeText(codeEl.textContent || '');
+              const icon = document.getElementById('copy-export-icon');
+              const text = document.getElementById('copy-export-text');
+              if (icon && text) {
+                icon.textContent = '✔';
+                text.textContent = 'Copied!';
+                setTimeout(() => {
+                  icon.textContent = '⎘';
+                  text.textContent = 'Copy Code';
+                }, 2000);
+              }
+              showToast('site.config.ts snippet copied to clipboard');
+            } catch (e) {
+              showToast('Could not copy to clipboard', true);
+            }
+          }
+        };
+      }
+
+      const downloadJsonBtn = document.getElementById('prof-download-json-btn');
+      if (downloadJsonBtn) {
+        downloadJsonBtn.onclick = downloadJson;
+      }
+
+      const importFileInput = document.getElementById('prof-import-file');
+      if (importFileInput) {
+        importFileInput.onchange = (e) => {
+          const file = e.target.files?.[0];
+          if (file) importJson(file);
+        };
+      }
+
+      const form = document.getElementById('profile-editor-form');
+      if (form) {
+        form.onsubmit = handleSave;
+      }
+
+      const bioInp = document.getElementById('prof-description');
+      if (bioInp) {
+        bioInp.oninput = () => {
+          const countEl = document.getElementById('prof-bio-count');
+          if (countEl) countEl.textContent = `${bioInp.value.length} chars`;
+        };
+      }
+
+      // Keyboard shortcuts
+      document.onkeydown = (e) => {
+        const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName || '');
+
+        // 'e' key opens editor if not typing in input
+        if (e.key === 'e' && !isInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          const modal = document.getElementById('profile-editor-modal');
+          if (modal && modal.classList.contains('hidden')) {
+            e.preventDefault();
+            openEditorModal();
+          }
+        }
+
+        // Escape closes modals
+        if (e.key === 'Escape') {
+          closeEditorModal();
+          closeExportModal();
+        }
+
+        // Ctrl+Enter inside form saves
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          const modal = document.getElementById('profile-editor-modal');
+          if (modal && !modal.classList.contains('hidden')) {
+            e.preventDefault();
+            handleSave();
+          }
+        }
+      };
+    }
+
+    // Wire to both initial load and Astro ClientRouter page transitions
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initProfileEditor);
+    } else {
+      initProfileEditor();
+    }
+    document.addEventListener('astro:page-load', initProfileEditor);
+  })();
+</script>

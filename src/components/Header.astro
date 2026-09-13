@@ -1,5 +1,6 @@
 ---
 import ThemeToggle from './ThemeToggle.astro';
+import { siteConfig } from '@/site.config';
 
 interface Props {
   activePath?: string;
@@ -20,7 +21,7 @@ const navLinks = [
     <div class="flex items-center gap-6 md:gap-8">
       <a href="/" class="flex items-center gap-1 font-mono text-[14px] hover:opacity-90 transition-opacity">
         <span class="text-primary font-bold">&gt;</span>
-        <span class="text-on-surface font-semibold tracking-tight">harish</span>
+        <span class="text-on-surface font-semibold tracking-tight" data-author-brand>{siteConfig.author.toLowerCase()}</span>
       </a>
       <nav class="flex items-center gap-4 text-[13px] font-mono">
         {navLinks.map((link) => {
@@ -60,7 +61,8 @@ const navLinks = [
       <a
         href="/about"
         class="hidden sm:flex items-center justify-center w-7 h-7 bg-surface-container border border-outline-variant hover:border-primary rounded-[2px] text-label-sm text-primary font-mono transition-colors"
-        title="Identity // UID: 0x03E8"
+        title={`Identity // UID: ${siteConfig.uid}`}
+        data-author-uid
       >
         <span>UID</span>
       </a>
