@@ -1,0 +1,46 @@
+---
+interface Props {
+  rawContent: string;
+}
+
+const { rawContent } = Astro.props;
+---
+
+<button
+  type="button"
+  id="copy-markdown-btn"
+  data-content={encodeURIComponent(rawContent)}
+  class="flex items-center gap-1.5 font-mono text-[11px] text-on-surface-variant hover:text-primary transition-colors cursor-pointer bg-surface-container border border-outline-variant hover:border-outline px-2.5 py-1 rounded-[2px] select-none"
+  title="Copy raw Markdown source"
+>
+  <span class="text-primary font-bold">[MD]</span>
+  <span id="copy-markdown-btn-text">Copy as Markdown</span>
+</button>
+
+<script is:inline>
+  function initCopyMarkdown() {
+    const btn = document.getElementById('copy-markdown-btn');
+    const textEl = document.getElementById('copy-markdown-btn-text');
+    if (!btn || !textEl) return;
+
+    btn.onclick = async () => {
+      const raw = decodeURIComponent(btn.getAttribute('data-content') || '');
+      if (!raw) return;
+
+      try {
+        await navigator.clipboard.writeText(raw);
+        textEl.textContent = 'Copied!';
+        textEl.classList.add('text-primary');
+        setTimeout(() => {
+          textEl.textContent = 'Copy as Markdown';
+          textEl.classList.remove('text-primary');
+        }, 2000);
+      } catch (err) {
+        console.error('Failed to copy markdown:', err);
+      }
+    };
+  }
+
+  initCopyMarkdown();
+  document.addEventListener('astro:after-swap', initCopyMarkdown);
+</script>

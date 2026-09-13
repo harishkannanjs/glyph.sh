@@ -1,0 +1,52 @@
+---
+interface Props {
+  label?: string;
+  type?: 'flag' | 'payload' | 'spoiler' | 'solution';
+}
+
+const { label = 'Classified Data', type = 'spoiler' } = Astro.props;
+---
+
+<div class="my-6 border border-outline-variant bg-surface-container-low rounded-[2px] overflow-hidden font-mono text-[13px] spoiler-block">
+  <div class="flex items-center justify-between px-3 py-2 bg-surface-container border-b border-outline-variant select-none">
+    <div class="flex items-center gap-2">
+      <span class="w-1.5 h-1.5 bg-error"></span>
+      <span class="text-[11px] text-error font-bold uppercase tracking-wider">[{type.toUpperCase()}]</span>
+      <span class="text-on-surface text-[12px] font-medium">{label}</span>
+    </div>
+    <button
+      type="button"
+      class="spoiler-toggle text-primary hover:underline text-[11px] cursor-pointer"
+    >
+      [Click to reveal]
+    </button>
+  </div>
+  <div class="spoiler-content hidden p-4 bg-[#0a0d10] border-t border-outline-variant/40">
+    <slot />
+  </div>
+</div>
+
+<script is:inline>
+  function initSpoilers() {
+    const blocks = document.querySelectorAll('.spoiler-block');
+    blocks.forEach((block) => {
+      const toggle = block.querySelector('.spoiler-toggle');
+      const content = block.querySelector('.spoiler-content');
+      if (toggle && content) {
+        toggle.onclick = () => {
+          const isHidden = content.classList.contains('hidden');
+          if (isHidden) {
+            content.classList.remove('hidden');
+            toggle.textContent = '[Click to conceal]';
+          } else {
+            content.classList.add('hidden');
+            toggle.textContent = '[Click to reveal]';
+          }
+        };
+      }
+    });
+  }
+
+  initSpoilers();
+  document.addEventListener('astro:after-swap', initSpoilers);
+</script>

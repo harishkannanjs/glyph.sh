@@ -1,0 +1,51 @@
+---
+import { getCollection, render } from 'astro:content';
+import BlogPostLayout from '@/layouts/BlogPostLayout.astro';
+import Spoiler from '@/components/Spoiler.astro';
+import Mermaid from '@/components/Mermaid.astro';
+import Asciinema from '@/components/Asciinema.astro';
+import Sidenote from '@/components/Sidenote.astro';
+import Footnotes from '@/components/Footnotes.astro';
+
+export async function getStaticPaths() {
+  const isProd = import.meta.env.PROD;
+  const posts = await getCollection('blog', ({ data }) => {
+    // Strictly exclude drafts in production builds per brief
+    return isProd ? !data.draft : true;
+  });
+
+  posts.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
+
+  return posts.map((post, index) => ({
+    params: { slug: post.id.replace(/\.(md|mdx)$/, '') },
+    props: {
+      post,
+      allPosts: posts,
+      // Previous is older (next index), Next is newer (previous index)
+      prevPost: index < posts.length - 1 ? posts[index + 1] : null,
+      nextPost: index > 0 ? posts[index - 1] : null,
+    },
+  }));
+}
+
+const { post, allPosts, prevPost, nextPost } = Astro.props;
+const { Content, headings } = await render(post);
+---
+
+<BlogPostLayout
+  post={post}
+  allPosts={allPosts}
+  headings={headings}
+  prevPost={prevPost}
+  nextPost={nextPost}
+>
+  <Content
+    components={{
+      Spoiler,
+      Mermaid,
+      Asciinema,
+      Sidenote,
+      Footnotes,
+    }}
+  />
+</BlogPostLayout>

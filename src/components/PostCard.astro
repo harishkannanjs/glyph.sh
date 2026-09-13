@@ -1,0 +1,74 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { getReadingTime } from '@/lib/reading-time';
+import TagBadge from './TagBadge.astro';
+
+interface Props {
+  post: CollectionEntry<'blog'>;
+  showDivider?: boolean;
+}
+
+const { post, showDivider = true } = Astro.props;
+const slug = post.id.replace(/\.(md|mdx)$/, '');
+const reading = getReadingTime(post.body || '');
+
+const pubDateStr = new Date(post.data.pubDate).toISOString().split('T')[0];
+const catCommand = `cat ${pubDateStr}-${slug}.md`;
+---
+
+<article class="group relative flex flex-col pt-6 pb-9 bg-surface transition-colors">
+  {showDivider && (
+    <div class="h-[1px] w-full bg-outline-variant/60 mb-8 group-first:hidden"></div>
+  )}
+
+  <!-- Metadata Bar: terminal command + reading time + tags -->
+  <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-on-surface-variant mb-2 font-mono">
+    <span class="text-primary font-bold select-none">$</span>
+    <span class="text-primary">{catCommand}</span>
+    <span class="text-outline">·</span>
+    <span class="text-outline">{reading.text}</span>
+    <span class="text-outline">·</span>
+    <div class="flex items-center gap-1.5 flex-wrap">
+      {post.data.tags.slice(0, 3).map((tag) => (
+        <TagBadge tag={tag} />
+      ))}
+      {post.data.tags.length > 3 && (
+        <span class="text-[10px] text-outline">+{post.data.tags.length - 3}</span>
+      )}
+    </div>
+  </div>
+
+  <!-- Title Link with View Transition -->
+  <a class="block group-hover:text-primary transition-colors text-on-surface mb-2" href={`/blog/${slug}`}>
+    <h2
+      class="text-[20px] font-semibold tracking-tight leading-snug font-mono"
+      transition:name={`post-title-${slug}`}
+    >
+      {post.data.title}
+    </h2>
+  </a>
+
+  <!-- Excerpt / Summary -->
+  <p class="text-[14px] text-on-surface-variant leading-relaxed mb-4 font-mono">
+    {post.data.description}
+  </p>
+
+  <!-- Bottom CTA & Meta -->
+  <div class="flex items-center gap-4 text-[12px] font-mono">
+    <a
+      class="inline-flex items-center gap-1 text-primary hover:underline underline-offset-4"
+      href={`/blog/${slug}`}
+    >
+      <span>read post</span>
+      <span class="font-bold transition-transform group-hover:translate-x-0.5">→</span>
+    </a>
+    {post.data.series && (
+      <>
+        <span class="text-outline-variant">|</span>
+        <span class="text-outline font-mono text-[11px]">
+          [Series: Part {post.data.seriesPart}/{post.data.seriesTotal}]
+        </span>
+      </>
+    )}
+  </div>
+</article>

@@ -1,0 +1,82 @@
+---
+// CodeBlockEnhancer.astro - Client enhancer for code blocks: language badge, copy button, diffs
+---
+
+<script is:inline>
+  function enhanceCodeBlocks() {
+    const preBlocks = document.querySelectorAll('article pre');
+    preBlocks.forEach((pre) => {
+      if (pre.getAttribute('data-enhanced') === 'true') return;
+      pre.setAttribute('data-enhanced', 'true');
+
+      // Detect language from class (e.g. language-rust, language-c)
+      const code = pre.querySelector('code');
+      let lang = 'text';
+      if (code) {
+        const match = code.className.match(/language-([a-zA-Z0-9_-]+)/);
+        if (match) lang = match[1];
+      }
+      if (pre.getAttribute('data-language')) {
+        lang = pre.getAttribute('data-language');
+      }
+
+      // Create container wrapper
+      const wrapper = document.createElement('div');
+      wrapper.className = 'my-6 border border-outline-variant rounded-[2px] overflow-hidden font-mono text-[13px]';
+      pre.parentNode.insertBefore(wrapper, pre);
+
+      // Create header bar
+      const header = document.createElement('div');
+      header.className = 'flex items-center justify-between px-3 py-1.5 bg-surface-container border-b border-outline-variant select-none text-[11px] text-outline';
+      
+      const titleSpan = document.createElement('div');
+      titleSpan.className = 'flex items-center gap-1.5';
+      titleSpan.innerHTML = `<span class="text-primary font-bold">&gt;</span><span class="text-on-surface-variant uppercase tracking-wider font-semibold">${lang}</span>`;
+      
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'text-primary hover:underline cursor-pointer select-none font-medium text-[11px]';
+      copyBtn.textContent = '[Copy]';
+
+      copyBtn.onclick = async () => {
+        const textToCopy = code ? code.innerText : pre.innerText;
+        try {
+          await navigator.clipboard.writeText(textToCopy);
+          copyBtn.textContent = '[Copied!]';
+          setTimeout(() => {
+            copyBtn.textContent = '[Copy]';
+          }, 2000);
+        } catch (e) {
+          console.error('Failed to copy code:', e);
+        }
+      };
+
+      header.appendChild(titleSpan);
+      header.appendChild(copyBtn);
+
+      wrapper.appendChild(header);
+      wrapper.appendChild(pre);
+
+      // Clean pre styling
+      pre.style.margin = '0';
+      pre.style.border = 'none';
+
+      // Enhance diff lines if diff language
+      if (lang === 'diff' && code) {
+        const lines = code.innerHTML.split('\n');
+        const enhancedLines = lines.map((line) => {
+          if (line.startsWith('+') || line.includes('&lt;span class="line"&gt;+')) {
+            return `<div class="bg-primary/10 text-primary px-2 -mx-2">${line}</div>`;
+          } else if (line.startsWith('-') || line.includes('&lt;span class="line"&gt;-')) {
+            return `<div class="bg-error/10 text-error px-2 -mx-2">${line}</div>`;
+          }
+          return line;
+        });
+        code.innerHTML = enhancedLines.join('\n');
+      }
+    });
+  }
+
+  enhanceCodeBlocks();
+  document.addEventListener('astro:after-swap', enhanceCodeBlocks);
+</script>

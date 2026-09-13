@@ -1,0 +1,101 @@
+---
+title: "Bypassing hardware break detection in anti-cheat drivers"
+description: "Analyzing kernel-level debug register traps (DR0-DR7), ThreadContext tampering, and crafting hardware-assisted hypervisor stealth breakpoints."
+pubDate: 2026-01-29
+tags: ["reverse-engineering", "kernel", "x86-64"]
+draft: false
+series: "Windows Internals Exploitation"
+seriesPart: 1
+seriesTotal: 4
+---
+
+Anti-cheat drivers operating at Ring 0 routinely poll the CPU debug registers (`DR0` through `DR7`) across all registered thread contexts to catch reverse engineers attaching debuggers or hooking code routines via hardware breakpoints.
+
+In this write-up, we analyze the detection mechanisms used by modern kernel integrity scanners and demonstrate how a lightweight Type-2 hypervisor (VT-x / AMD-V) can intercept debug register access via VM-exits, concealing breakpoints completely.
+
+## Hardware Debug Registers on x86-64
+
+The x86-64 architecture provides four linear address breakpoint registers (`DR0`-`DR3`), a debug status register (`DR6`), and a control register (`DR7`):
+
+```
++-------------------------------------------------------------+
+| DR0: Linear Breakpoint Address 0                            |
+| DR1: Linear Breakpoint Address 1                            |
+| DR2: Linear Breakpoint Address 2                            |
+| DR3: Linear Breakpoint Address 3                            |
+| DR6: Debug Status Register (#DB source indicators)          |
+| DR7: Debug Control Register (Condition & Length fields)     |
++-------------------------------------------------------------+
+```
+
+When a thread attempts to read or modify these registers, user-mode debuggers invoke `GetThreadContext` and `SetThreadContext`. Kernel integrity drivers hook or query these structures directly via `KeCapturePersistentThreadContext` or undocumented offsets in the `KTHREAD` / `ETHREAD` blocks.
+
+## Live Kernel Debugger Session
+
+Below is a recording of an active kernel debugging session inspecting the target thread's debug control registers:
+
+<Asciinema
+  src="/recordings/dr7-hook-session.cast"
+  title="Kernel WinDbg Session: ThreadContext DR7 Inspection"
+/>
+
+## Hypervisor Interception via MOV-DR VM-Exits
+
+By activating the Primary Processor-Based VM-Execution Controls bit `MOV-DR exiting` (Bit 23), every attempt by the guest operating system (including Ring 0 kernel modules) to execute `mov drX, reg` triggers an unconditional VM-exit:
+
+```c
+// Enable MOV-DR execution control in VMCS
+ULONG32 primary_controls = __vmx_vmread(CPU_BASED_VM_EXEC_CONTROL);
+primary_controls |= CPU_BASED_MOV_DR_EXITING;
+__vmx_vmwrite(CPU_BASED_VM_EXEC_CONTROL, primary_controls);
+```
+
+When the anti-cheat driver runs:
+
+```asm
+mov rax, dr7
+test rax, 0x5555 ; Check if any local/global breakpoint bits are set
+jnz alert_security_daemon
+```
+
+Our hypervisor VM-exit handler traps the instruction and mimics an empty register state:
+
+```c
+VOID HandleMovDrExit(PGUEST_REGISTERS regs, ULONG64 exit_qualification) {
+    ULONG dr_index = exit_qualification & 0x7;
+    ULONG direction = (exit_qualification >> 4) & 0x1;
+    
+    if (direction == 0) { // MOV to DR
+        // Store virtualized shadow DR value
+        g_VirtualDr[dr_index] = GetRegisterValue(regs, (exit_qualification >> 8) & 0xF);
+    } else { // MOV from DR
+        // Deceive reader: Return clean zeroed state to kernel driver
+        SetRegisterValue(regs, (exit_qualification >> 8) & 0xF, 0x00000400); // DR7 reset default
+    }
+    
+    // Advance Guest RIP past the MOV instruction (3 bytes)
+    ULONG64 guest_rip = __vmx_vmread(GUEST_RIP);
+    __vmx_vmwrite(GUEST_RIP, guest_rip + 3);
+}
+```
+
+<Spoiler label="Hypervisor Stealth Breakpoint Injection Stub" type="payload">
+```asm
+; Concealed INT1 vector remapping in Ring -1
+global hypervisor_trap_entry
+hypervisor_trap_entry:
+    pushfq
+    push rax
+    push rbx
+    ; Re-route exception directly to our out-of-band communication socket
+    call deliver_stealth_trap
+    pop rbx
+    pop rax
+    popfq
+    vmresume
+```
+</Spoiler>
+
+## Conclusion
+
+Kernel anti-cheat modules cannot trust hardware registers when executing underneath an adversarial virtualization layer. Hypervisor-based VMCS interception transparently neutralizes register heuristics with zero observable timing overhead.

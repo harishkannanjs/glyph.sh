@@ -1,0 +1,61 @@
+---
+// GiscusComments.astro - GitHub Discussions comments with theme synchronization
+---
+
+<section class="mt-12 pt-8 border-t border-outline-variant font-mono">
+  <div class="flex items-center justify-between pb-4 mb-4 border-b border-outline-variant/60 text-[12px] text-outline">
+    <div class="flex items-center gap-2 uppercase tracking-wider">
+      <span class="text-primary font-bold">&gt;</span>
+      <span>Discussions &amp; Peer Review</span>
+    </div>
+    <span class="text-on-surface-variant text-[11px]">backed by giscus</span>
+  </div>
+
+  <div id="giscus-container" class="min-h-[200px]">
+    <!-- Giscus script will be injected client-side with proper theme -->
+  </div>
+</section>
+
+<script is:inline>
+  function loadGiscus() {
+    const container = document.getElementById('giscus-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+    const isDark = document.documentElement.classList.contains('dark');
+    const theme = isDark ? 'transparent_dark' : 'light';
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.setAttribute('data-repo', 'harish/blog'); // placeholder, user can configure repo
+    script.setAttribute('data-repo-id', 'R_kgDOplaceholder');
+    script.setAttribute('data-category', 'Announcements');
+    script.setAttribute('data-category-id', 'DIC_kwDOplaceholder');
+    script.setAttribute('data-mapping', 'pathname');
+    script.setAttribute('data-strict', '0');
+    script.setAttribute('data-reactions-enabled', '1');
+    script.setAttribute('data-emit-metadata', '0');
+    script.setAttribute('data-input-position', 'bottom');
+    script.setAttribute('data-theme', theme);
+    script.setAttribute('data-lang', 'en');
+    script.crossOrigin = 'anonymous';
+    script.async = true;
+
+    container.appendChild(script);
+  }
+
+  function handleThemeChange(e) {
+    const nextTheme = e.detail?.theme === 'light' ? 'light' : 'transparent_dark';
+    const iframe = document.querySelector('iframe.giscus-frame');
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage(
+        { giscus: { setConfig: { theme: nextTheme } } },
+        'https://giscus.app'
+      );
+    }
+  }
+
+  loadGiscus();
+  window.addEventListener('theme-change', handleThemeChange);
+  document.addEventListener('astro:after-swap', loadGiscus);
+</script>

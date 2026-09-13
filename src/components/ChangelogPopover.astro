@@ -1,0 +1,110 @@
+---
+import type { ChangelogEntry } from '@/lib/changelog';
+import { formatChangelogDate } from '@/lib/changelog';
+
+interface Props {
+  changelog: ChangelogEntry[];
+}
+
+const { changelog } = Astro.props;
+---
+
+{changelog && changelog.length > 0 && (
+  <div class="inline-block relative font-mono text-[12px]">
+    <button
+      type="button"
+      id="changelog-toggle-btn"
+      class="text-primary hover:underline underline-offset-4 cursor-pointer inline-flex items-center gap-1 font-medium select-none"
+    >
+      <span>see what changed</span>
+      <span class="text-[11px]">▼</span>
+    </button>
+
+    <!-- Popover box -->
+    <div
+      id="changelog-popover-box"
+      class="hidden absolute left-0 top-full mt-2 w-[340px] sm:w-[460px] bg-surface-container-low border border-outline-variant rounded-[2px] p-3 shadow-none z-30 font-mono text-[12px]"
+    >
+      <div class="flex items-center justify-between pb-2 mb-2 border-b border-outline-variant">
+        <div class="flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 bg-primary"></span>
+          <span class="text-on-surface font-semibold text-[11px] uppercase tracking-wider">
+            REVISION LOG ({changelog.length} {changelog.length === 1 ? 'entry' : 'entries'})
+          </span>
+        </div>
+        <button
+          type="button"
+          id="changelog-close-btn"
+          class="text-outline hover:text-on-surface cursor-pointer text-[11px]"
+        >
+          [Close]
+        </button>
+      </div>
+
+      <div class="space-y-3 max-h-72 overflow-y-auto">
+        {changelog.map((entry) => (
+          <div class="space-y-1.5 pb-2 border-b border-outline-variant/30 last:border-b-0">
+            <div class="text-[11px] text-primary font-bold">
+              # {formatChangelogDate(entry.date)}
+            </div>
+            <p class="text-[12px] text-on-surface-variant leading-relaxed">
+              {entry.summary}
+            </p>
+            {entry.diff && (
+              <div class="bg-surface-container-lowest p-2 font-mono text-[11px] overflow-x-auto leading-relaxed border border-outline-variant/50">
+                {entry.diff.split('\n').map((line) => {
+                  const isAdd = line.startsWith('+');
+                  const isDel = line.startsWith('-');
+                  return (
+                    <div
+                      class={`flex items-start gap-2 ${
+                        isAdd
+                          ? 'text-primary bg-primary/10 px-1'
+                          : isDel
+                          ? 'text-error bg-error/10 px-1'
+                          : 'text-on-surface-variant'
+                      }`}
+                    >
+                      <span class="text-outline select-none shrink-0 w-3">
+                        {isAdd ? '+' : isDel ? '-' : ' '}
+                      </span>
+                      <span class="whitespace-pre">{line.replace(/^[+-]/, '')}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
+
+<script is:inline>
+  function initChangelog() {
+    const toggleBtn = document.getElementById('changelog-toggle-btn');
+    const popoverBox = document.getElementById('changelog-popover-box');
+    const closeBtn = document.getElementById('changelog-close-btn');
+
+    if (!toggleBtn || !popoverBox) return;
+
+    toggleBtn.onclick = (e) => {
+      e.stopPropagation();
+      popoverBox.classList.toggle('hidden');
+    };
+
+    if (closeBtn) {
+      closeBtn.onclick = () => popoverBox.classList.add('hidden');
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!popoverBox.contains(e.target) && e.target !== toggleBtn) {
+        popoverBox.classList.add('hidden');
+      }
+    });
+  }
+
+  initChangelog();
+  document.addEventListener('astro:after-swap', initChangelog);
+</script>

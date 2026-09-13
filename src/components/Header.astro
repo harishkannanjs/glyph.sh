@@ -1,0 +1,69 @@
+---
+import ThemeToggle from './ThemeToggle.astro';
+
+interface Props {
+  activePath?: string;
+}
+
+const { activePath = '/' } = Astro.props;
+
+const navLinks = [
+  { href: '/', label: 'Home' },
+  { href: '/tags', label: 'Tags' },
+  { href: '/about', label: 'About' },
+];
+---
+
+<header class="fixed top-0 left-0 right-0 z-40 bg-surface/90 backdrop-blur-md border-b border-outline-variant transition-colors">
+  <div class="h-14 max-w-[1040px] mx-auto px-4 md:px-8 flex items-center justify-between">
+    <!-- Left: Brand & Nav -->
+    <div class="flex items-center gap-6 md:gap-8">
+      <a href="/" class="flex items-center gap-1 font-mono text-[14px] hover:opacity-90 transition-opacity">
+        <span class="text-primary font-bold">&gt;</span>
+        <span class="text-on-surface font-semibold tracking-tight">harish</span>
+      </a>
+      <nav class="flex items-center gap-4 text-[13px] font-mono">
+        {navLinks.map((link) => {
+          const isActive = activePath === link.href || (link.href !== '/' && activePath.startsWith(link.href));
+          return (
+            <a
+              href={link.href}
+              class={`transition-colors hover:underline underline-offset-4 ${
+                isActive
+                  ? 'text-primary font-bold'
+                  : 'text-on-surface-variant hover:text-on-surface'
+              }`}
+              aria-current={isActive ? 'page' : undefined}
+            >
+              {link.label}
+            </a>
+          );
+        })}
+      </nav>
+    </div>
+
+    <!-- Right: Search, Theme Toggle, UID -->
+    <div class="flex items-center gap-3">
+      <button
+        type="button"
+        id="header-search-btn"
+        class="flex items-center gap-2 bg-surface-container border border-outline-variant hover:border-outline px-2.5 py-1 rounded-[2px] text-[11px] text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
+        title="Search (Ctrl+K or /)"
+      >
+        <span class="text-primary font-mono font-bold">&gt;_</span>
+        <span class="hidden sm:inline">Search</span>
+        <kbd class="px-1 bg-surface-container-high text-primary border border-outline-variant rounded-[2px] text-[10px] font-mono">/</kbd>
+      </button>
+
+      <ThemeToggle />
+
+      <a
+        href="/about"
+        class="hidden sm:flex items-center justify-center w-7 h-7 bg-surface-container border border-outline-variant hover:border-primary rounded-[2px] text-label-sm text-primary font-mono transition-colors"
+        title="Identity // UID: 0x03E8"
+      >
+        <span>UID</span>
+      </a>
+    </div>
+  </div>
+</header>

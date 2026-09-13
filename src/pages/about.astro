@@ -1,0 +1,134 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { siteConfig } from '@/site.config';
+---
+
+<BaseLayout title="About" activePath="/about">
+  <div class="max-w-[720px] mx-auto px-4 md:px-0 py-8 font-mono">
+    <div class="flex flex-col space-y-10">
+      <!-- Section Header & Shell Prompt -->
+      <section class="flex flex-col space-y-2">
+        <div class="flex items-center gap-2 text-primary text-[13px]">
+          <span class="font-bold">$</span>
+          <span class="text-on-surface">whoami</span>
+        </div>
+        <h1 class="text-[26px] sm:text-[28px] text-on-surface font-semibold tracking-tight">
+          About
+        </h1>
+      </section>
+
+      <!-- Bio & Terminal Avatar Core Block -->
+      <section class="flex flex-col md:flex-row gap-6 items-start">
+        <!-- 120px Sharp Avatar Container with 1px hairline border -->
+        <div class="w-[120px] h-[120px] shrink-0 bg-surface-container-low border border-outline-variant relative p-1 select-none">
+          <div class="w-full h-full bg-surface-container flex flex-col justify-between p-2 overflow-hidden">
+            <div class="flex justify-between items-center text-outline text-[11px]">
+              <span>UID</span>
+              <span class="text-primary font-bold">{siteConfig.uid}</span>
+            </div>
+            <div class="flex flex-col items-center justify-center my-auto">
+              <span class="text-primary text-[32px] font-bold leading-none">&gt;_</span>
+              <span class="text-[10px] text-outline-variant tracking-wider mt-1">SEC_LAB</span>
+            </div>
+            <div class="text-right text-[9px] text-outline font-mono leading-none">TTY:pts/1</div>
+          </div>
+        </div>
+
+        <!-- Bio Text -->
+        <div class="flex flex-col space-y-3 flex-1 text-[14px] text-on-surface-variant leading-relaxed">
+          <p>
+            I am <strong class="text-on-surface font-semibold">{siteConfig.author}</strong>, a security researcher, vulnerability analyst, and systems software developer. My work focuses on low-level primitives across <span class="text-on-surface font-medium">Windows kernel exploitation</span>, <span class="text-on-surface font-medium">hypervisor research</span>, vulnerability discovery via static/dynamic reverse engineering, and embedded firmware architectures for low-level robotics.
+          </p>
+          <p class="text-outline text-[13px]">
+            Currently auditing kernel virtualization boundaries, hypercalls, and real-time scheduling integrity.
+          </p>
+        </div>
+      </section>
+
+      <!-- Technical Focus & Skills: Clean Plain-Text List -->
+      <section class="flex flex-col space-y-4 pt-6 border-t border-outline-variant">
+        <div class="flex items-center gap-2 text-[11px] text-outline uppercase tracking-wider">
+          <span class="text-primary font-bold">[+]</span>
+          <span>Focus Areas &amp; Capabilities</span>
+        </div>
+        <div class="grid grid-cols-1 gap-3 text-[13px]">
+          <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 bg-surface-container-lowest p-3 border border-outline-variant">
+            <div class="w-48 shrink-0 text-on-surface font-semibold flex items-center gap-1.5 text-[13px]">
+              <span class="text-primary font-bold">&gt;</span> Vulnerability Research
+            </div>
+            <div class="text-on-surface-variant text-[13px]">
+              Windows Internals, ALPC/RPC, Hyper-V, Type Confusion, Memory Safety
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 bg-surface-container-lowest p-3 border border-outline-variant">
+            <div class="w-48 shrink-0 text-on-surface font-semibold flex items-center gap-1.5 text-[13px]">
+              <span class="text-primary font-bold">&gt;</span> Reverse Engineering
+            </div>
+            <div class="text-on-surface-variant text-[13px]">
+              IDA Pro, Ghidra, WinDbg, x86-64 asm, ARM64, Hex Fiend, Symbol Resolution
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 bg-surface-container-lowest p-3 border border-outline-variant">
+            <div class="w-48 shrink-0 text-on-surface font-semibold flex items-center gap-1.5 text-[13px]">
+              <span class="text-primary font-bold">&gt;</span> Systems &amp; Robotics
+            </div>
+            <div class="text-on-surface-variant text-[13px]">
+              Rust, Modern C/C++, Embedded RTOS, Bare-metal HAL, CoppeliaSim kinematics
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Public Coordinates & Plain Text Socials -->
+      <section class="flex flex-col space-y-4 pt-6 border-t border-outline-variant">
+        <div class="text-[11px] text-outline uppercase tracking-wider">
+          Public Identity &amp; Cryptographic Keys
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 text-[13px] text-on-surface-variant">
+          <div class="flex items-center gap-2">
+            <span class="text-outline w-24">GitHub:</span>
+            <a
+              href={siteConfig.githubUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-on-surface hover:text-primary hover:underline underline-offset-4 transition-colors font-medium"
+            >
+              {siteConfig.handle}
+            </a>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-outline w-24">Twitter/X:</span>
+            <a
+              href={siteConfig.twitterUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-on-surface hover:text-primary hover:underline underline-offset-4 transition-colors font-medium"
+            >
+              {siteConfig.twitterHandle}
+            </a>
+          </div>
+
+          <div class="flex items-start sm:items-center gap-2 col-span-1 sm:col-span-2 flex-col sm:flex-row">
+            <span class="text-outline w-24 shrink-0">PGP Key:</span>
+            <code class="text-primary bg-surface-container-low px-2 py-1 border border-outline-variant select-all text-[11px] break-all">
+              {siteConfig.pgpKey}
+            </code>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-outline w-24">Syndication:</span>
+            <a
+              href="/feed.xml"
+              class="text-on-surface hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1 text-primary"
+            >
+              <span>/feed.xml</span>
+            </a>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</BaseLayout>

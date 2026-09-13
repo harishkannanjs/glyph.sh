@@ -1,0 +1,34 @@
+---
+interface Props {
+  tag: string;
+  count?: number;
+  isActive?: boolean;
+  href?: string;
+  size?: 'sm' | 'md';
+}
+
+const { tag, count, isActive = false, href = `/tags/${tag}`, size = 'sm' } = Astro.props;
+---
+
+<a
+  href={href}
+  class={`inline-flex items-center gap-1 rounded-[2px] font-mono leading-tight transition-colors group select-none ${
+    size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-[12px]'
+  } ${
+    isActive
+      ? 'bg-primary/10 border border-primary text-primary font-medium'
+      : 'bg-surface-container border border-outline-variant hover:border-outline text-on-surface-variant hover:text-on-surface'
+  }`}
+>
+  <span
+    class={`w-1.5 h-1.5 rounded-none transition-colors ${
+      isActive ? 'bg-primary' : 'bg-outline-variant group-hover:bg-outline'
+    }`}
+  ></span>
+  <span>{tag}</span>
+  {count !== undefined && (
+    <span class="text-outline group-hover:text-on-surface-variant text-[10px] pl-0.5 font-normal">
+      ({count})
+    </span>
+  )}
+</a>

@@ -1,0 +1,32 @@
+---
+interface Props {
+  id?: string;
+  number?: number | string;
+}
+
+const { id, number = '*' } = Astro.props;
+---
+
+<span class="relative inline-block font-mono text-[12px] group/sidenote">
+  <!-- Number indicator in prose -->
+  <sup class="text-primary font-bold cursor-pointer select-none px-0.5" title="Note">
+    [{number}]
+  </sup>
+
+  <!-- Wide screen margin note (≥1400px) -->
+  <span
+    id={id}
+    class="hidden min-[1400px]:block absolute left-full ml-12 top-0 w-[240px] p-3 bg-surface-container-low border border-outline-variant rounded-[2px] text-[12px] text-on-surface-variant leading-relaxed shadow-none z-10"
+  >
+    <span class="text-primary font-bold mr-1">[{number}]</span>
+    <slot />
+  </span>
+
+  <!-- Narrow screen inline disclosure (<1400px) -->
+  <span
+    class="min-[1400px]:hidden block my-2 p-2.5 bg-surface-container-low border-l-2 border-primary border-y border-r border-outline-variant text-[12px] text-on-surface-variant leading-relaxed"
+  >
+    <span class="text-primary font-bold mr-1">[{number}] Note:</span>
+    <slot />
+  </span>
+</span>

@@ -1,0 +1,58 @@
+---
+// ThemeToggle.astro - Terminal-styled theme toggle
+---
+
+<button
+  type="button"
+  id="theme-toggle"
+  class="px-2 h-7 bg-surface-container-high border border-outline-variant rounded-[2px] flex items-center gap-1.5 text-primary hover:border-outline transition-colors cursor-pointer text-[11px] font-mono select-none"
+  title="Toggle Theme [Dark / Light]"
+  aria-label="Toggle Theme"
+>
+  <span class="text-primary font-bold">&gt;</span>
+  <span id="theme-toggle-text" class="text-on-surface-variant">dark</span>
+  <span class="animate-pulse text-primary font-bold">_</span>
+</button>
+
+<script is:inline>
+  function initTheme() {
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const themeToggleText = document.getElementById('theme-toggle-text');
+    
+    // Default to dark unless explicitly light
+    const currentTheme = localStorage.getItem('theme') || 'dark';
+    if (currentTheme === 'light') {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.add('light');
+      if (themeToggleText) themeToggleText.textContent = 'light';
+    } else {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+      if (themeToggleText) themeToggleText.textContent = 'dark';
+    }
+
+    if (themeToggleBtn) {
+      themeToggleBtn.onclick = () => {
+        const isDark = document.documentElement.classList.contains('dark');
+        const nextTheme = isDark ? 'light' : 'dark';
+        
+        if (nextTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+          document.documentElement.classList.remove('light');
+          if (themeToggleText) themeToggleText.textContent = 'dark';
+        } else {
+          document.documentElement.classList.remove('dark');
+          document.documentElement.classList.add('light');
+          if (themeToggleText) themeToggleText.textContent = 'light';
+        }
+        localStorage.setItem('theme', nextTheme);
+        
+        // Dispatch custom event for giscus or other synced components
+        window.dispatchEvent(new CustomEvent('theme-change', { detail: { theme: nextTheme } }));
+      };
+    }
+  }
+
+  initTheme();
+  document.addEventListener('astro:after-swap', initTheme);
+</script>

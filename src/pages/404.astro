@@ -1,0 +1,95 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="404: Not Found">
+  <div class="max-w-[720px] mx-auto px-4 md:px-0 py-12 font-mono">
+    <section class="flex flex-col space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-1.5 h-1.5 bg-error"></span>
+          <span class="text-[11px] text-outline uppercase tracking-wider">
+            System State Preview // Exception Handler
+          </span>
+        </div>
+        <span class="text-error text-[11px] font-bold">SIG_ERR: 404</span>
+      </div>
+
+      <!-- Authentic UNIX Terminal Box -->
+      <div class="w-full bg-surface-container-lowest border border-outline-variant flex flex-col shadow-none">
+        <!-- Terminal Window Bar -->
+        <div class="bg-surface-container px-3 py-1.5 border-b border-outline-variant flex items-center justify-between text-[11px] text-outline select-none">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 bg-error"></span>
+            <span class="w-2 h-2 bg-outline"></span>
+            <span class="w-2 h-2 bg-outline-variant"></span>
+            <span class="ml-2 text-on-surface-variant font-mono">bash - pts/0 (err_trap)</span>
+          </div>
+          <div class="text-[10px] text-outline font-mono">buffer: 13 lines</div>
+        </div>
+
+        <!-- Terminal Body Content -->
+        <div class="p-4 space-y-3 font-mono leading-relaxed bg-[#0a0d10] text-on-surface text-[13px]">
+          <div class="flex items-center gap-2">
+            <span class="text-primary font-bold">harish@research:~$</span>
+            <span class="text-on-surface">cat requested-page.md</span>
+          </div>
+
+          <div class="text-error flex items-start gap-2 pl-2">
+            <span class="text-outline select-none">&gt;</span>
+            <span>cat: requested-page.md: No such file or directory</span>
+          </div>
+
+          <div class="text-on-surface-variant flex items-start gap-2 pl-2 border-l border-outline-variant/50 ml-2 mt-1 text-[12px]">
+            <span class="text-outline">status:</span>
+            <span class="text-error font-semibold">404_NOT_FOUND</span>
+            <span class="text-outline">| code: ENOENT | errno: 2</span>
+          </div>
+
+          <!-- System diagnostic dump snippet -->
+          <div class="py-2 text-outline text-[11px] pl-2 select-none space-y-0.5">
+            <div>[debug_trap] frame.pointer: 0x7fff8921df00</div>
+            <div>[debug_trap] target_inode: nil</div>
+            <div>[debug_trap] routing: /dev/null &lt;- request</div>
+          </div>
+
+          <!-- Prompt recovery line with action prompts -->
+          <div class="pt-2 border-t border-outline-variant/60 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-[13px]">
+            <div class="flex items-center gap-2 text-primary font-bold">
+              <span>&gt;</span>
+              <span class="text-on-surface-variant font-normal">Resolution paths:</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <a
+                class="inline-flex items-center gap-1 bg-surface-container hover:bg-surface-container-high border border-outline-variant hover:border-primary text-on-surface hover:text-primary px-2.5 py-0.5 transition-colors"
+                href="/"
+              >
+                <span>[Home]</span>
+              </a>
+              <button
+                class="inline-flex items-center gap-1 bg-surface-container hover:bg-surface-container-high border border-outline-variant hover:border-primary text-on-surface hover:text-primary px-2.5 py-0.5 transition-colors cursor-pointer"
+                data-open-search
+                type="button"
+              >
+                <span>[Search]</span>
+                <span class="text-outline text-[11px]">(hit <kbd class="text-primary font-mono">/</kbd>)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Blinking caret active state -->
+          <div class="flex items-center gap-2 pt-1">
+            <span class="text-primary font-bold">harish@research:~$</span>
+            <span class="inline-block w-2.5 h-4 bg-primary animate-pulse align-middle"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Micro Diagnostic Footnote -->
+      <div class="flex items-center justify-between text-[11px] text-outline px-1">
+        <span>POSIX standard return exit code 127</span>
+        <span>fault_addr: 0x0000000000000000</span>
+      </div>
+    </section>
+  </div>
+</BaseLayout>

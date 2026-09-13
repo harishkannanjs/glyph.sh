@@ -1,0 +1,167 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import BaseLayout from './BaseLayout.astro';
+import ReadingProgressBar from '@/components/ReadingProgressBar.astro';
+import TableOfContents from '@/components/TableOfContents.astro';
+import TagBadge from '@/components/TagBadge.astro';
+import SeriesStrip from '@/components/SeriesStrip.astro';
+import ChangelogPopover from '@/components/ChangelogPopover.astro';
+import CopyMarkdownButton from '@/components/CopyMarkdownButton.astro';
+import RelatedPosts from '@/components/RelatedPosts.astro';
+import PrevNextNav from '@/components/PrevNextNav.astro';
+import GiscusComments from '@/components/GiscusComments.astro';
+import CodeBlockEnhancer from '@/components/CodeBlockEnhancer.astro';
+import { getReadingTime } from '@/lib/reading-time';
+import { getSeriesInfo } from '@/lib/series';
+
+interface Props {
+  post: CollectionEntry<'blog'>;
+  allPosts: CollectionEntry<'blog'>[];
+  headings: { depth: number; slug: string; text: string }[];
+  prevPost?: CollectionEntry<'blog'> | null;
+  nextPost?: CollectionEntry<'blog'> | null;
+}
+
+const { post, allPosts, headings, prevPost, nextPost } = Astro.props;
+const slug = post.id.replace(/\.(md|mdx)$/, '');
+const reading = getReadingTime(post.body || '');
+const seriesInfo = getSeriesInfo(post, allPosts);
+
+const pubDateStr = new Date(post.data.pubDate).toISOString().split('T')[0];
+const updatedDateStr = post.data.updatedDate
+  ? new Date(post.data.updatedDate).toISOString().split('T')[0]
+  : null;
+---
+
+<BaseLayout
+  title={post.data.title}
+  description={post.data.description}
+  image={`/og/${slug}.png`}
+  article={true}
+  pubDate={post.data.pubDate}
+  activePath="/blog"
+>
+  <ReadingProgressBar />
+
+  <div class="max-w-[1040px] mx-auto px-4 md:px-8 py-8">
+    <!-- Breadcrumb -->
+    <div class="flex items-center gap-2 text-[11px] text-outline mb-4 uppercase tracking-wider font-mono">
+      <span class="text-primary font-bold">&gt;</span>
+      <a href="/" class="hover:text-primary transition-colors">ROOT</a>
+      <span class="text-outline-variant">/</span>
+      <a href="/blog" class="hover:text-primary transition-colors">WRITEUPS</a>
+      <span class="text-outline-variant">/</span>
+      <span class="text-primary font-mono">{slug}</span>
+    </div>
+
+    <!-- Main 2-column layout (content + sticky TOC on xl) -->
+    <div class="grid grid-cols-1 xl:grid-cols-[1fr_240px] gap-10 items-start">
+      <!-- Article Column -->
+      <article class="max-w-[680px] w-full min-w-0" data-pagefind-body>
+        <!-- Header -->
+        <header class="mb-8 font-mono">
+          <h1
+            class="text-[26px] sm:text-[28px] text-on-surface mb-3 font-semibold tracking-tight leading-snug font-mono"
+            transition:name={`post-title-${slug}`}
+            data-pagefind-meta="title"
+          >
+            {post.data.title}
+          </h1>
+
+          <!-- Meta bar -->
+          <div class="relative text-[13px] text-on-surface-variant flex flex-wrap items-center gap-x-3 gap-y-1 py-1 mb-4">
+            <span># Published {pubDateStr}</span>
+            {updatedDateStr && (
+              <>
+                <span class="text-outline-variant">·</span>
+                <span>Updated {updatedDateStr}</span>
+              </>
+            )}
+            <span class="text-outline-variant">·</span>
+            <span>{reading.text}</span>
+            {post.data.changelog && post.data.changelog.length > 0 && (
+              <>
+                <span class="text-outline-variant">·</span>
+                <ChangelogPopover changelog={post.data.changelog} />
+              </>
+            )}
+          </div>
+
+          <!-- Tags & Copy Markdown Bar -->
+          <div class="flex items-center justify-between flex-wrap gap-3 py-2 bg-surface-container-low px-3 rounded-[2px] border border-outline-variant">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              {post.data.tags.map((tag) => (
+                <TagBadge tag={tag} />
+              ))}
+            </div>
+            <CopyMarkdownButton rawContent={post.body || ''} />
+          </div>
+
+          <!-- Series Strip if applicable -->
+          {seriesInfo && <SeriesStrip seriesInfo={seriesInfo} />}
+        </header>
+
+        <!-- Inline Table of Contents for viewports <1280px -->
+        <TableOfContents headings={headings} mode="inline" />
+
+        <!-- Prose Article Body -->
+        <section class="prose prose-invert max-w-none text-on-surface leading-relaxed text-[14px]">
+          <slot />
+        </section>
+
+        <!-- Related Posts -->
+        <RelatedPosts currentPost={post} allPosts={allPosts} />
+
+        <!-- Previous / Next Navigation -->
+        <PrevNextNav prevPost={prevPost} nextPost={nextPost} />
+
+        <!-- Comments Section -->
+        <GiscusComments />
+      </article>
+
+      <!-- Sticky Rail Table of Contents for viewports >=1280px -->
+      <TableOfContents headings={headings} mode="rail" />
+    </div>
+  </div>
+
+  <CodeBlockEnhancer />
+
+  <!-- Heading Anchors Client Script -->
+  <script is:inline>
+    function initHeadingAnchors() {
+      const headings = document.querySelectorAll('article h2, article h3');
+      headings.forEach((heading) => {
+        if (!heading.id || heading.querySelector('.heading-anchor')) return;
+
+        const anchor = document.createElement('a');
+        anchor.className = 'heading-anchor text-outline hover:text-primary transition-opacity opacity-0 group-hover:opacity-100 ml-2 font-mono text-[14px] inline-block select-none cursor-pointer';
+        anchor.href = `#${heading.id}`;
+        anchor.innerHTML = '#';
+        anchor.title = 'Copy permanent link';
+
+        heading.classList.add('group', 'relative');
+        heading.appendChild(anchor);
+
+        anchor.onclick = async (e) => {
+          e.preventDefault();
+          const url = `${window.location.origin}${window.location.pathname}#${heading.id}`;
+          try {
+            await navigator.clipboard.writeText(url);
+            anchor.innerHTML = '[Copied!]';
+            anchor.classList.add('text-primary');
+            history.pushState(null, '', `#${heading.id}`);
+            setTimeout(() => {
+              anchor.innerHTML = '#';
+              anchor.classList.remove('text-primary');
+            }, 1800);
+          } catch (err) {
+            window.location.hash = heading.id;
+          }
+        };
+      });
+    }
+
+    initHeadingAnchors();
+    document.addEventListener('astro:after-swap', initHeadingAnchors);
+  </script>
+</BaseLayout>

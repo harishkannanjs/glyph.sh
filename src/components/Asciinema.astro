@@ -1,0 +1,89 @@
+---
+interface Props {
+  src: string;
+  title?: string;
+  cols?: number;
+  rows?: number;
+  autoPlay?: boolean;
+  speed?: number;
+}
+
+const {
+  src,
+  title = 'Terminal Recording',
+  cols = 80,
+  rows = 24,
+  autoPlay = false,
+  speed = 1,
+} = Astro.props;
+
+const containerId = `asciinema-${Math.random().toString(36).substring(2, 9)}`;
+---
+
+<div class="my-8 border border-outline-variant bg-surface-container-low rounded-[2px] overflow-hidden font-mono text-[12px] shadow-none">
+  <!-- Window title bar -->
+  <div class="bg-surface-container px-3 py-1.5 border-b border-outline-variant flex items-center justify-between text-[11px] text-outline select-none">
+    <div class="flex items-center gap-2">
+      <span class="w-2 h-2 bg-error"></span>
+      <span class="w-2 h-2 bg-outline"></span>
+      <span class="w-2 h-2 bg-outline-variant"></span>
+      <span class="ml-2 text-on-surface-variant font-mono">{title}</span>
+    </div>
+    <div class="text-[10px] text-outline font-mono">asciinema-session</div>
+  </div>
+
+  <!-- Player container -->
+  <div
+    id={containerId}
+    class="asciinema-player-mount p-2 bg-[#0a0d10]"
+    data-src={src}
+    data-cols={cols}
+    data-rows={rows}
+    data-autoplay={autoPlay ? 'true' : 'false'}
+    data-speed={speed}
+  ></div>
+</div>
+
+<link
+  rel="stylesheet"
+  type="text/css"
+  href="https://cdn.jsdelivr.net/npm/asciinema-player@3.8.2/dist/bundle/asciinema-player.css"
+/>
+
+<script>
+  async function initAsciinema() {
+    const mounts = document.querySelectorAll('.asciinema-player-mount');
+    if (mounts.length === 0) return;
+
+    try {
+      // @ts-ignore
+      const AsciinemaPlayer = await import('https://cdn.jsdelivr.net/npm/asciinema-player@3.8.2/dist/bundle/asciinema-player.js');
+      
+      mounts.forEach((mount) => {
+        if (mount.getAttribute('data-initialized') === 'true') return;
+        const src = mount.getAttribute('data-src');
+        const cols = parseInt(mount.getAttribute('data-cols') || '80', 10);
+        const rows = parseInt(mount.getAttribute('data-rows') || '24', 10);
+        const autoPlay = mount.getAttribute('data-autoplay') === 'true';
+        const speed = parseFloat(mount.getAttribute('data-speed') || '1');
+
+        if (src) {
+          AsciinemaPlayer.create(src, mount, {
+            cols,
+            rows,
+            autoPlay,
+            speed,
+            theme: 'monokai',
+            terminalFontFamily: 'JetBrains Mono, monospace',
+          });
+          mount.setAttribute('data-initialized', 'true');
+        }
+      });
+    } catch (e) {
+      console.warn('Failed to load asciinema player:', e);
+    }
+  }
+
+  initAsciinema();
+  document.addEventListener('astro:after-swap', initAsciinema);
+</script>

@@ -1,0 +1,292 @@
+---
+import { getCollection } from 'astro:content';
+
+const posts = await getCollection('blog', ({ data }) => !data.draft);
+const searchData = posts.map((post) => ({
+  id: post.id.replace(/\.(md|mdx)$/, ''),
+  title: post.data.title,
+  description: post.data.description,
+  pubDate: new Date(post.data.pubDate).toISOString().split('T')[0],
+  tags: post.data.tags,
+  url: `/blog/${post.id.replace(/\.(md|mdx)$/, '')}`,
+}));
+---
+
+<!-- Global Command Palette Modal Overlay -->
+<div
+  id="command-palette-backdrop"
+  class="hidden fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-start justify-center pt-20 px-4 transition-all"
+  role="dialog"
+  aria-modal="true"
+  aria-label="Command Palette Search"
+>
+  <div
+    id="command-palette-box"
+    class="w-full max-w-[580px] bg-surface-container-low border border-outline-variant rounded-[2px] overflow-hidden shadow-none flex flex-col font-mono"
+  >
+    <!-- Prompt & Input Bar -->
+    <div class="flex items-center gap-2 px-4 py-2.5 border-b border-outline-variant bg-surface-container">
+      <span class="text-primary font-bold select-none text-[13px]">harish@research:~$</span>
+      <input
+        type="text"
+        id="command-palette-input"
+        class="flex-1 bg-transparent text-on-surface font-mono text-[13px] placeholder:text-outline focus:outline-none"
+        placeholder="search research notes, CVEs, teardowns, tags..."
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button
+        type="button"
+        id="command-palette-close"
+        class="text-on-surface-variant hover:text-on-surface p-1 transition-colors cursor-pointer text-xs"
+        aria-label="Close search"
+      >
+        [ESC]
+      </button>
+    </div>
+
+    <!-- Results Container -->
+    <div
+      id="command-palette-results"
+      class="p-1.5 text-[13px] max-h-80 overflow-y-auto divide-y divide-outline-variant/30"
+    >
+      <div class="px-3 py-2 text-[11px] text-outline uppercase tracking-wider select-none">
+        All Entries &amp; Topics
+      </div>
+      <!-- Items populated by client script -->
+    </div>
+
+    <!-- Footer Bar -->
+    <div class="px-4 py-2 border-t border-outline-variant bg-surface-container-lowest text-[11px] text-outline flex items-center justify-between select-none">
+      <span>Use <kbd class="text-on-surface-variant bg-surface-container px-1 py-0.5 border border-outline-variant/50 rounded-[2px]">↑</kbd> <kbd class="text-on-surface-variant bg-surface-container px-1 py-0.5 border border-outline-variant/50 rounded-[2px]">↓</kbd> to navigate, <kbd class="text-on-surface-variant bg-surface-container px-1 py-0.5 border border-outline-variant/50 rounded-[2px]">↵</kbd> to select</span>
+      <span><kbd class="text-on-surface-variant bg-surface-container px-1 py-0.5 border border-outline-variant/50 rounded-[2px]">ESC</kbd> to close</span>
+    </div>
+  </div>
+</div>
+
+<script is:inline define:vars={{ initialPosts: searchData }}>
+  (function () {
+    let activeIndex = -1;
+    let filteredItems = [];
+    let pagefind = null;
+
+    // Load pagefind if available
+    async function loadPagefind() {
+      try {
+        pagefind = await import('/pagefind/pagefind.js');
+        await pagefind.init();
+      } catch (e) {
+        // Fallback to in-memory initialPosts in dev mode or before pagefind index build
+      }
+    }
+    loadPagefind();
+
+    function getElements() {
+      return {
+        backdrop: document.getElementById('command-palette-backdrop'),
+        box: document.getElementById('command-palette-box'),
+        input: document.getElementById('command-palette-input'),
+        closeBtn: document.getElementById('command-palette-close'),
+        resultsContainer: document.getElementById('command-palette-results'),
+      };
+    }
+
+    function openPalette() {
+      const { backdrop, input } = getElements();
+      if (!backdrop || !input) return;
+      backdrop.classList.remove('hidden');
+      input.value = '';
+      performSearch('');
+      input.focus();
+    }
+
+    function closePalette() {
+      const { backdrop } = getElements();
+      if (!backdrop) return;
+      backdrop.classList.add('hidden');
+      activeIndex = -1;
+    }
+
+    function renderResults(items) {
+      const { resultsContainer } = getElements();
+      if (!resultsContainer) return;
+      filteredItems = items;
+      activeIndex = items.length > 0 ? 0 : -1;
+
+      if (items.length === 0) {
+        resultsContainer.innerHTML = `
+          <div class="p-4 text-center text-outline text-[12px]">
+            No matching entries found for query.
+          </div>
+        `;
+        return;
+      }
+
+      resultsContainer.innerHTML = items
+        .map(
+          (item, idx) => `
+          <a
+            href="${item.url}"
+            data-index="${idx}"
+            class="palette-item flex items-center justify-between px-3 py-2 rounded-[2px] transition-colors text-on-surface cursor-pointer ${
+              idx === 0 ? 'bg-surface-container text-primary font-medium' : 'hover:bg-surface-container hover:text-primary'
+            }"
+          >
+            <div class="flex items-center gap-2 overflow-hidden pr-2">
+              <span class="text-primary font-bold select-none text-[12px]">${idx === 0 ? '&gt;' : ' '}</span>
+              <span class="truncate text-[13px]">${item.title}</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0 text-[11px] text-outline">
+              ${item.tags && item.tags.length > 0 ? `<span class="bg-surface-container-high px-1.5 py-0.5 rounded-[2px] text-[10px] text-on-surface-variant hidden sm:inline">#${item.tags[0]}</span>` : ''}
+              <span>${item.pubDate || ''}</span>
+            </div>
+          </a>
+        `
+        )
+        .join('');
+
+      // Add click listeners to items
+      const itemElements = resultsContainer.querySelectorAll('.palette-item');
+      itemElements.forEach((el) => {
+        el.addEventListener('mouseenter', () => {
+          const idx = parseInt(el.getAttribute('data-index') || '0', 10);
+          updateActiveItem(idx);
+        });
+      });
+    }
+
+    function updateActiveItem(newIndex) {
+      const { resultsContainer } = getElements();
+      if (!resultsContainer || filteredItems.length === 0) return;
+      
+      const itemElements = resultsContainer.querySelectorAll('.palette-item');
+      itemElements.forEach((el, idx) => {
+        const arrow = el.querySelector('span:first-child');
+        if (idx === newIndex) {
+          el.classList.add('bg-surface-container', 'text-primary', 'font-medium');
+          if (arrow) arrow.innerHTML = '&gt;';
+          el.scrollIntoView({ block: 'nearest' });
+        } else {
+          el.classList.remove('bg-surface-container', 'text-primary', 'font-medium');
+          if (arrow) arrow.innerHTML = '&nbsp;';
+        }
+      });
+      activeIndex = newIndex;
+    }
+
+    async function performSearch(query) {
+      const q = query.trim().toLowerCase();
+      if (!q) {
+        renderResults(initialPosts.slice(0, 10));
+        return;
+      }
+
+      // If pagefind is loaded and available
+      if (pagefind) {
+        try {
+          const search = await pagefind.search(q);
+          if (search && search.results && search.results.length > 0) {
+            const pagefindResults = await Promise.all(
+              search.results.slice(0, 8).map(async (r) => {
+                const data = await r.data();
+                return {
+                  title: data.meta?.title || data.url,
+                  url: data.url,
+                  pubDate: data.meta?.pubDate || '',
+                  tags: data.filters?.tags || [],
+                };
+              })
+            );
+            if (pagefindResults.length > 0) {
+              renderResults(pagefindResults);
+              return;
+            }
+          }
+        } catch (e) {
+          // fallback to in-memory
+        }
+      }
+
+      // In-memory fallback search across titles, descriptions, and tags
+      const results = initialPosts.filter((item) => {
+        const titleMatch = item.title.toLowerCase().includes(q);
+        const descMatch = item.description.toLowerCase().includes(q);
+        const tagMatch = item.tags.some((t) => t.toLowerCase().includes(q));
+        return titleMatch || descMatch || tagMatch;
+      });
+
+      renderResults(results);
+    }
+
+    function bindEvents() {
+      const { backdrop, input, closeBtn } = getElements();
+      if (!backdrop || !input) return;
+
+      // Close when clicking outside box
+      backdrop.onclick = (e) => {
+        if (e.target === backdrop) closePalette();
+      };
+
+      if (closeBtn) {
+        closeBtn.onclick = () => closePalette();
+      }
+
+      // Input changes
+      input.oninput = (e) => {
+        performSearch(e.target.value);
+      };
+
+      // Input key navigation
+      input.onkeydown = (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closePalette();
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (filteredItems.length > 0) {
+            const next = (activeIndex + 1) % filteredItems.length;
+            updateActiveItem(next);
+          }
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (filteredItems.length > 0) {
+            const prev = (activeIndex - 1 + filteredItems.length) % filteredItems.length;
+            updateActiveItem(prev);
+          }
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (activeIndex >= 0 && activeIndex < filteredItems.length) {
+            const target = filteredItems[activeIndex];
+            if (target && target.url) {
+              window.location.href = target.url;
+            }
+          }
+        }
+      };
+
+      // Global hotkeys: Ctrl+K, Cmd+K, or "/" (unless focused on input/textarea)
+      window.onkeydown = (e) => {
+        const isInput = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
+        if ((e.key === 'k' && (e.ctrlKey || e.metaKey)) || (e.key === '/' && !isInput)) {
+          e.preventDefault();
+          openPalette();
+        }
+      };
+
+      // Header search button triggers
+      const headerSearchBtn = document.getElementById('header-search-btn');
+      if (headerSearchBtn) {
+        headerSearchBtn.onclick = () => openPalette();
+      }
+
+      // Any inline search triggers
+      const openSearchButtons = document.querySelectorAll('[data-open-search]');
+      openSearchButtons.forEach((btn) => {
+        btn.onclick = () => openPalette();
+      });
+    }
+
+    bindEvents();
+    document.addEventListener('astro:after-swap', bindEvents);
+  })();
+</script>
