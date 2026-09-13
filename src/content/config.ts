@@ -18,6 +18,7 @@ export const blogSchema = z.object({
   series: z.string().optional(),
   seriesPart: z.number().int().positive().optional(),
   seriesTotal: z.number().int().positive().optional(),
+  words: z.number().optional(),
   changelog: z.array(changelogItemSchema).optional(),
 }).refine((data) => {
   const hasSeries = Boolean(data.series);

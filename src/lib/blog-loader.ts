@@ -143,10 +143,8 @@ export function enhanceBlogData(
       }
     }
 
-    // Series Total
-    if (data.seriesTotal === undefined || data.seriesTotal === null) {
-      data.seriesTotal = Math.max(totalSiblings, data.seriesPart || 1);
-    }
+    // Series Total: strictly derived from actual files in the series folder
+    data.seriesTotal = Math.max(totalSiblings, data.seriesPart || 1);
   } else if (isStandalone) {
     // Standalone writeup - ensure no dangling series fields so schema refinement passes
     delete data.series;
@@ -157,6 +155,27 @@ export function enhanceBlogData(
     delete data.series;
     delete data.seriesPart;
     delete data.seriesTotal;
+  }
+
+  // Exact word count calculated directly from actual file content (no guesswork)
+  if (data.words === undefined) {
+    try {
+      if (filePath && fs.existsSync(filePath)) {
+        const fileContent = fs.readFileSync(filePath, 'utf-8');
+        const contentWithoutFrontmatter = fileContent.replace(/^---[\s\S]*?---/, '');
+        const wordCount = contentWithoutFrontmatter
+          .replace(/<[^>]*>/g, '')
+          .replace(/[#*`~_\[\]()]/g, '')
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean).length;
+        data.words = wordCount;
+      } else {
+        data.words = 0;
+      }
+    } catch {
+      data.words = 0;
+    }
   }
 
   // Description fallback

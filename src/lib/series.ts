@@ -22,8 +22,8 @@ export function getSeriesInfo(
   currentPost: CollectionEntry<'blog'>,
   allPosts: CollectionEntry<'blog'>[]
 ): SeriesInfo | null {
-  const { series, seriesPart, seriesTotal } = currentPost.data;
-  if (!series || seriesPart === undefined || seriesTotal === undefined) {
+  const { series, seriesPart } = currentPost.data;
+  if (!series || seriesPart === undefined) {
     return null;
   }
 
@@ -31,12 +31,14 @@ export function getSeriesInfo(
     .filter((p) => p.data.series === series && !p.data.draft)
     .sort((a, b) => (a.data.seriesPart || 0) - (b.data.seriesPart || 0));
 
+  const totalParts = currentPost.data.seriesTotal || seriesPosts.length;
+
   const parts: SeriesPart[] = [];
-  for (let i = 1; i <= seriesTotal; i++) {
+  for (let i = 1; i <= totalParts; i++) {
     const matchingPost = seriesPosts.find((p) => p.data.seriesPart === i);
     parts.push({
       part: i,
-      total: seriesTotal,
+      total: totalParts,
       title: matchingPost ? matchingPost.data.title : `Part ${i}`,
       slug: matchingPost ? matchingPost.id.replace(/\.(md|mdx)$/, '') : '',
       isCurrent: i === seriesPart,
@@ -46,7 +48,7 @@ export function getSeriesInfo(
   return {
     name: series,
     currentPart: seriesPart,
-    totalParts: seriesTotal,
+    totalParts,
     parts,
   };
 }
