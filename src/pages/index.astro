@@ -2,7 +2,6 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import PostCard from '@/components/PostCard.astro';
-import { siteConfig } from '@/site.config';
 
 // Fetch all published posts sorted by date descending
 const allPosts = await getCollection('blog', ({ data }) => !data.draft);
@@ -12,17 +11,13 @@ allPosts.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
 <BaseLayout title="Home" activePath="/">
   <div class="max-w-[720px] mx-auto px-4 md:px-0 py-8">
     <div class="flex flex-col w-full">
-      <!-- Terminal Header Buffer -->
-      <div class="flex flex-col py-6 mb-4">
-        <div class="flex items-center gap-2 mb-2 text-[11px] text-outline font-mono">
-          <span class="inline-block w-2 h-2 bg-primary rounded-none"></span>
-          <span>INDEX BUFFER // SEC_SYS_LOG</span>
-          <span class="text-outline-variant">·</span>
-          <span class="text-on-surface-variant font-mono">STATUS: OK</span>
+      <!-- Clean Posts Terminal Context -->
+      <div class="flex items-center justify-between py-4 mb-6 border-b border-outline-variant font-mono text-[12px]">
+        <div class="flex items-center gap-2 text-primary">
+          <span class="font-bold">&gt;</span>
+          <span class="text-on-surface font-semibold tracking-tight">Recent Articles</span>
         </div>
-        <p class="text-[14px] text-on-surface-variant leading-relaxed font-mono">
-          <span class="text-primary font-bold mr-1">&gt;</span>{siteConfig.description}
-        </p>
+        <span class="text-outline text-[11px]">{allPosts.length} entries</span>
       </div>
 
       <!-- Post List -->

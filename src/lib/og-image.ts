@@ -192,7 +192,7 @@ export async function generateOgImage({
                       fontSize: '16px',
                       fontWeight: 600,
                     },
-                    children: 'STATUS: OK // BUFFER: 1040px',
+                    children: 'Terminal Blog // Technical Research',
                   },
                 },
               ],

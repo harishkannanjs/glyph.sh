@@ -45,13 +45,6 @@ const authorTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
           <div class="flex items-center gap-2 text-primary text-[13px]">
             <span class="font-bold">$</span>
             <span class="text-on-surface">whoami --profile</span>
-            <span
-              id="profile-custom-badge"
-              class="hidden px-1.5 py-0.2 text-[10px] bg-primary/10 text-primary border border-primary/30 rounded-[2px]"
-              title="Custom local profile override active in this browser"
-            >
-              ● local custom
-            </span>
           </div>
           <ProfileEditor />
         </div>

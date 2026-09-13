@@ -1,12 +1,12 @@
 ---
 import { siteConfig } from '@/site.config';
 
-// Default configuration serialized for client hydration
-const defaultConfig = {
+const currentProfile = {
   author: siteConfig.author,
   handle: siteConfig.handle,
   role: siteConfig.role || "Security Researcher & Systems Developer",
   twitterHandle: siteConfig.twitterHandle,
+  title: siteConfig.title,
   description: siteConfig.description,
   siteUrl: siteConfig.siteUrl,
   uid: siteConfig.uid,
@@ -15,6 +15,7 @@ const defaultConfig = {
   githubUrl: siteConfig.githubUrl,
   twitterUrl: siteConfig.twitterUrl,
   email: siteConfig.email,
+  postsPerPage: siteConfig.postsPerPage || 10,
 };
 ---
 
@@ -24,7 +25,7 @@ const defaultConfig = {
     id="edit-profile-btn"
     type="button"
     class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-container border border-outline-variant hover:border-primary text-primary hover:text-primary text-[11px] rounded-[2px] cursor-pointer transition-colors"
-    title="Edit your profile details (shortcut: 'e')"
+    title="Edit repository profile details (shortcut: 'e')"
   >
     <span class="font-bold">&gt;</span>
     <span>$ edit-profile</span>
@@ -32,21 +33,12 @@ const defaultConfig = {
   </button>
 
   <button
-    id="reset-profile-btn"
-    type="button"
-    class="hidden inline-flex items-center gap-1 px-2 py-1 bg-surface-container border border-outline-variant hover:border-error text-error text-[11px] rounded-[2px] cursor-pointer transition-colors"
-    title="Reset profile back to default site config"
-  >
-    <span>↺ reset</span>
-  </button>
-
-  <button
     id="export-config-btn"
     type="button"
     class="inline-flex items-center gap-1 px-2 py-1 bg-surface-container border border-outline-variant hover:border-outline text-on-surface-variant hover:text-on-surface text-[11px] rounded-[2px] cursor-pointer transition-colors"
-    title="Export profile configuration as TypeScript snippet"
+    title="View or copy profile.json snippet for git commit"
   >
-    <span>⎘ export</span>
+    <span>⎘ profile.json</span>
   </button>
 </div>
 
@@ -77,7 +69,7 @@ const defaultConfig = {
         <span class="w-2.5 h-2.5 rounded-full bg-primary inline-block"></span>
         <span class="w-2.5 h-2.5 rounded-full bg-outline inline-block"></span>
         <span id="editor-title" class="font-semibold text-on-surface ml-1">
-          ~/etc/profile.json [nano/vim mode]
+          profile.json — Repository Config Editor
         </span>
       </div>
       <button
@@ -93,7 +85,7 @@ const defaultConfig = {
     <!-- Terminal Editor Body / Form -->
     <form id="profile-editor-form" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-[12px]">
       <div class="p-2.5 bg-surface-container-lowest border border-outline-variant text-[11px] text-on-surface-variant leading-relaxed">
-        <span class="text-primary font-bold"># NOTE:</span> Changes are dynamically saved to your browser's <code class="text-primary">localStorage</code> and update the live profile and blog chrome instantly. You can also export the generated code directly to <code class="text-primary">src/site.config.ts</code>.
+        <span class="text-primary font-bold"># REPOSITORY STORAGE:</span> Profile details are stored directly in <code class="text-primary">profile.json</code> within your GitHub repository. In local development (<code class="text-primary">bun run dev</code>), saving writes directly to <code class="text-primary">profile.json</code> on disk. When hosting on GitHub, commit <code class="text-primary">profile.json</code> to your repo to publish changes to your <code class="text-primary">github.io</code> blog.
       </div>
 
       <!-- Two-column Grid of Profile Inputs -->
@@ -244,7 +236,7 @@ const defaultConfig = {
         </div>
       </div>
 
-      <!-- Backup / Restore Tools -->
+      <!-- Backup / Export Tools -->
       <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-outline-variant text-[11px]">
         <div class="flex items-center gap-2">
           <button
@@ -252,51 +244,41 @@ const defaultConfig = {
             id="prof-download-json-btn"
             class="px-2 py-1 bg-surface-container border border-outline-variant hover:border-outline text-on-surface-variant hover:text-on-surface rounded-[2px] transition-colors cursor-pointer"
           >
-            ⤓ Download JSON
+            ⤓ Download profile.json
           </button>
-          <label
-            for="prof-import-file"
+          <button
+            type="button"
+            id="prof-copy-json-btn"
             class="px-2 py-1 bg-surface-container border border-outline-variant hover:border-outline text-on-surface-variant hover:text-on-surface rounded-[2px] transition-colors cursor-pointer"
           >
-            ⤒ Import JSON
-          </label>
-          <input type="file" id="prof-import-file" accept="application/json" class="hidden" />
+            ⎘ Copy JSON
+          </button>
         </div>
-        <span class="text-outline text-[10px]">Ctrl+Enter to save</span>
+        <span class="text-outline text-[10px]">Saved to repository profile.json</span>
       </div>
 
       <!-- Modal Actions Footer -->
-      <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-outline-variant">
+      <div class="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-outline-variant">
         <button
           type="button"
-          id="prof-form-reset-btn"
-          class="px-3 py-1.5 bg-surface-container border border-outline-variant hover:border-error text-error text-[11px] rounded-[2px] cursor-pointer transition-colors"
+          id="cancel-editor-btn"
+          class="px-3 py-1.5 bg-surface-container border border-outline-variant hover:border-outline text-on-surface text-[11px] rounded-[2px] cursor-pointer transition-colors"
         >
-          ↺ Reset Defaults
+          Cancel
         </button>
-
-        <div class="flex items-center gap-2">
-          <button
-            type="button"
-            id="cancel-editor-btn"
-            class="px-3 py-1.5 bg-surface-container border border-outline-variant hover:border-outline text-on-surface text-[11px] rounded-[2px] cursor-pointer transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            class="px-4 py-1.5 bg-primary text-on-primary font-semibold text-[11px] rounded-[2px] cursor-pointer hover:opacity-90 transition-opacity flex items-center gap-1.5"
-          >
-            <span>✔</span>
-            <span>Save &amp; Apply</span>
-          </button>
-        </div>
+        <button
+          type="submit"
+          class="px-4 py-1.5 bg-primary text-on-primary font-semibold text-[11px] rounded-[2px] cursor-pointer hover:opacity-90 transition-opacity flex items-center gap-1.5"
+        >
+          <span>✔</span>
+          <span>Save to profile.json</span>
+        </button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- Export Config Snippet Modal -->
+<!-- Export Config Modal -->
 <div
   id="profile-export-modal"
   class="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 hidden font-mono"
@@ -309,7 +291,7 @@ const defaultConfig = {
       <div class="flex items-center gap-2 text-[12px]">
         <span class="text-primary font-bold">&gt;</span>
         <span id="export-title" class="font-semibold text-on-surface">
-          src/site.config.ts (Generated Config)
+          profile.json (Repository Source)
         </span>
       </div>
       <button
@@ -324,7 +306,7 @@ const defaultConfig = {
 
     <div class="p-4 sm:p-5 flex-1 overflow-y-auto space-y-3 text-[12px]">
       <p class="text-[11px] text-outline">
-        To persist your edited profile permanently across all git builds and deployments, copy this snippet and replace <code class="text-primary">src/site.config.ts</code> in your project:
+        This file is stored in your repository at <code class="text-primary">profile.json</code>. Commit any changes to Git to update your <code class="text-primary">github.io</code> blog:
       </p>
 
       <div class="relative group">
@@ -346,33 +328,16 @@ const defaultConfig = {
         class="px-3.5 py-1.5 bg-primary text-on-primary font-semibold text-[11px] rounded-[2px] cursor-pointer hover:opacity-90 transition-opacity flex items-center gap-1.5"
       >
         <span id="copy-export-icon">⎘</span>
-        <span id="copy-export-text">Copy Code</span>
+        <span id="copy-export-text">Copy JSON</span>
       </button>
     </div>
   </div>
 </div>
 
-<script is:inline define:vars={{ defaultConfig }}>
+<script is:inline define:vars={{ currentProfile }}>
   (function () {
-    const STORAGE_KEY = 'terminal_blog_profile';
+    let profile = { ...currentProfile };
 
-    // Get current effective profile (stored override or fallback to default)
-    function getStoredProfile() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) return JSON.parse(raw);
-      } catch (e) {
-        console.error('Error reading stored profile:', e);
-      }
-      return null;
-    }
-
-    function getEffectiveProfile() {
-      const stored = getStoredProfile();
-      return { ...defaultConfig, ...(stored || {}) };
-    }
-
-    // Show temporary terminal toast
     function showToast(message, isError = false) {
       const toast = document.getElementById('profile-toast');
       const msgEl = document.getElementById('profile-toast-msg');
@@ -391,95 +356,70 @@ const defaultConfig = {
       }, 3200);
     }
 
-    // Apply profile data to all target DOM elements
-    function applyProfile(profile) {
-      const isCustom = !!getStoredProfile();
-
-      // Update badge and reset button visibility
-      const customBadge = document.getElementById('profile-custom-badge');
-      if (customBadge) {
-        customBadge.classList.toggle('hidden', !isCustom);
-      }
-
-      const resetBtn = document.getElementById('reset-profile-btn');
-      if (resetBtn) {
-        resetBtn.classList.toggle('hidden', !isCustom);
-      }
+    function applyProfile(p) {
+      profile = { ...p };
 
       // Update Avatar ID & TTY
       document.querySelectorAll('[data-profile-handle]').forEach((el) => {
-        el.textContent = profile.handle || defaultConfig.handle;
+        el.textContent = p.handle || '';
       });
       document.querySelectorAll('[data-profile-tty]').forEach((el) => {
-        el.textContent = profile.tty || defaultConfig.tty;
+        el.textContent = p.tty || 'TTY:0';
       });
 
       // Update Author Name & Title
       document.querySelectorAll('[data-profile-author]').forEach((el) => {
-        el.textContent = profile.author || defaultConfig.author;
+        el.textContent = p.author || '';
       });
       document.querySelectorAll('[data-profile-role]').forEach((el) => {
-        el.textContent = profile.role || defaultConfig.role;
+        el.textContent = p.role || '';
       });
       document.querySelectorAll('[data-profile-bio]').forEach((el) => {
-        el.textContent = profile.description || defaultConfig.description;
+        el.textContent = p.description || '';
       });
 
       // Update Social & Contact links
       document.querySelectorAll('[data-profile-github-link]').forEach((el) => {
-        el.href = profile.githubUrl || defaultConfig.githubUrl;
+        el.href = p.githubUrl || '';
       });
       document.querySelectorAll('[data-profile-github-text]').forEach((el) => {
-        el.textContent = `GitHub: ${profile.handle || defaultConfig.handle}`;
+        el.textContent = `GitHub: ${p.handle || ''}`;
       });
 
       document.querySelectorAll('[data-profile-twitter-link]').forEach((el) => {
-        el.href = profile.twitterUrl || defaultConfig.twitterUrl;
+        el.href = p.twitterUrl || '';
       });
       document.querySelectorAll('[data-profile-twitter-text]').forEach((el) => {
-        el.textContent = `Twitter: ${profile.twitterHandle || defaultConfig.twitterHandle}`;
+        el.textContent = `Twitter: ${p.twitterHandle || ''}`;
       });
 
       document.querySelectorAll('[data-profile-email-link]').forEach((el) => {
-        el.href = `mailto:${profile.email || defaultConfig.email}`;
+        el.href = `mailto:${p.email || ''}`;
       });
       document.querySelectorAll('[data-profile-email-text]').forEach((el) => {
-        el.textContent = profile.email || defaultConfig.email;
+        el.textContent = p.email || '';
       });
 
       // Update Security coordinates (UID, PGP)
       document.querySelectorAll('[data-profile-uid]').forEach((el) => {
-        el.textContent = profile.uid || defaultConfig.uid;
+        el.textContent = p.uid || '';
       });
       document.querySelectorAll('[data-profile-pgp]').forEach((el) => {
-        el.textContent = profile.pgpKey || defaultConfig.pgpKey;
+        el.textContent = p.pgpKey || '';
       });
 
       // Update Section Header: "Published Posts by {author}"
       document.querySelectorAll('[data-profile-posts-author]').forEach((el) => {
-        el.textContent = `Published Posts by ${profile.author || defaultConfig.author}`;
+        el.textContent = `Published Posts by ${p.author || ''}`;
       });
 
-      // Update Header Brand and UID link
+      // Update Header Brand
       document.querySelectorAll('[data-author-brand]').forEach((el) => {
-        el.textContent = (profile.author || defaultConfig.author).toLowerCase();
+        el.textContent = (p.author || '').toLowerCase();
       });
-      document.querySelectorAll('[data-author-uid]').forEach((el) => {
-        el.setAttribute('title', `Identity // UID: ${profile.uid || defaultConfig.uid}`);
-      });
-
-      // Update Document Title if on profile page
-      if (window.location.pathname.startsWith('/about') || window.location.pathname.startsWith('/profile')) {
-        document.title = `Profile // ${profile.author || defaultConfig.author}`;
-      }
-
-      // Dispatch custom window event
-      window.dispatchEvent(new CustomEvent('profile-updated', { detail: profile }));
     }
 
-    // Populate the form with current effective values
     function populateForm() {
-      const p = getEffectiveProfile();
       const form = document.getElementById('profile-editor-form');
       if (!form) return;
 
@@ -494,45 +434,22 @@ const defaultConfig = {
       const ttyInp = form.querySelector('#prof-tty');
       const pgpInp = form.querySelector('#prof-pgp');
 
-      if (authorInp) authorInp.value = p.author || '';
-      if (handleInp) handleInp.value = p.handle || '';
-      if (roleInp) roleInp.value = p.role || '';
+      if (authorInp) authorInp.value = profile.author || '';
+      if (handleInp) handleInp.value = profile.handle || '';
+      if (roleInp) roleInp.value = profile.role || '';
       if (bioInp) {
-        bioInp.value = p.description || '';
+        bioInp.value = profile.description || '';
         const countEl = document.getElementById('prof-bio-count');
         if (countEl) countEl.textContent = `${bioInp.value.length} chars`;
       }
-      if (githubInp) githubInp.value = p.githubUrl || '';
-      if (twitterInp) twitterInp.value = p.twitterUrl || '';
-      if (emailInp) emailInp.value = p.email || '';
-      if (uidInp) uidInp.value = p.uid || '';
-      if (ttyInp) ttyInp.value = p.tty || '';
-      if (pgpInp) pgpInp.value = p.pgpKey || '';
+      if (githubInp) githubInp.value = profile.githubUrl || '';
+      if (twitterInp) twitterInp.value = profile.twitterUrl || '';
+      if (emailInp) emailInp.value = profile.email || '';
+      if (uidInp) uidInp.value = profile.uid || '';
+      if (ttyInp) ttyInp.value = profile.tty || '';
+      if (pgpInp) pgpInp.value = profile.pgpKey || '';
     }
 
-    // Generate TypeScript config snippet
-    function generateConfigSnippet(p) {
-      const escapedBio = (p.description || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-      return `export const siteConfig = {
-  author: "${p.author || defaultConfig.author}",
-  handle: "${p.handle || defaultConfig.handle}",
-  role: "${p.role || defaultConfig.role}",
-  twitterHandle: "${p.twitterHandle || defaultConfig.twitterHandle}",
-  title: "${p.author || defaultConfig.author} // Terminal Blog",
-  description: "${escapedBio}",
-  siteUrl: "${defaultConfig.siteUrl}",
-  uid: "${p.uid || defaultConfig.uid}",
-  tty: "${p.tty || defaultConfig.tty}",
-  pgpKey: "${p.pgpKey || defaultConfig.pgpKey}",
-  githubUrl: "${p.githubUrl || defaultConfig.githubUrl}",
-  twitterUrl: "${p.twitterUrl || defaultConfig.twitterUrl}",
-  email: "${p.email || defaultConfig.email}",
-  postsPerPage: 10,
-};
-`;
-    }
-
-    // Modal open/close handlers
     function openEditorModal() {
       populateForm();
       const modal = document.getElementById('profile-editor-modal');
@@ -549,10 +466,9 @@ const defaultConfig = {
     }
 
     function openExportModal() {
-      const p = getEffectiveProfile();
       const codeBlock = document.getElementById('export-code-block');
       if (codeBlock) {
-        codeBlock.textContent = generateConfigSnippet(p);
+        codeBlock.textContent = JSON.stringify(profile, null, 2);
       }
       const modal = document.getElementById('profile-export-modal');
       if (modal) modal.classList.remove('hidden');
@@ -563,7 +479,6 @@ const defaultConfig = {
       if (modal) modal.classList.add('hidden');
     }
 
-    // Normalize handle and URLs
     function formatHandle(str) {
       if (!str) return '@unknown';
       str = str.trim();
@@ -578,7 +493,7 @@ const defaultConfig = {
       return `${fallbackBase.replace(/\/+$/, '')}/${clean}`;
     }
 
-    function handleSave(e) {
+    async function handleSave(e) {
       if (e) e.preventDefault();
       const form = document.getElementById('profile-editor-form');
       if (!form) return;
@@ -589,175 +504,123 @@ const defaultConfig = {
         return;
       }
 
-      const rawHandle = form.querySelector('#prof-handle')?.value.trim() || defaultConfig.handle;
+      const rawHandle = form.querySelector('#prof-handle')?.value.trim() || profile.handle;
       const handle = formatHandle(rawHandle);
-      const role = form.querySelector('#prof-role')?.value.trim() || defaultConfig.role;
-      const description = form.querySelector('#prof-description')?.value.trim() || defaultConfig.description;
+      const role = form.querySelector('#prof-role')?.value.trim() || profile.role;
+      const description = form.querySelector('#prof-description')?.value.trim() || profile.description;
       const rawGithub = form.querySelector('#prof-github')?.value.trim();
-      const githubUrl = formatUrl(rawGithub, defaultConfig.githubUrl);
+      const githubUrl = formatUrl(rawGithub, profile.githubUrl);
 
       const rawTwitter = form.querySelector('#prof-twitter')?.value.trim();
-      const twitterUrl = formatUrl(rawTwitter, defaultConfig.twitterUrl);
-      const twitterHandle = rawTwitter ? formatHandle(rawTwitter.replace(/https?:\/\/(twitter|x)\.com\//, '')) : defaultConfig.twitterHandle;
+      const twitterUrl = formatUrl(rawTwitter, profile.twitterUrl);
+      const twitterHandle = rawTwitter ? formatHandle(rawTwitter.replace(/https?:\/\/(twitter|x)\.com\//, '')) : profile.twitterHandle;
 
-      const email = form.querySelector('#prof-email')?.value.trim() || defaultConfig.email;
-      const uid = form.querySelector('#prof-uid')?.value.trim() || defaultConfig.uid;
-      const tty = form.querySelector('#prof-tty')?.value.trim() || defaultConfig.tty;
-      const pgpKey = form.querySelector('#prof-pgp')?.value.trim() || defaultConfig.pgpKey;
+      const email = form.querySelector('#prof-email')?.value.trim() || profile.email;
+      const uid = form.querySelector('#prof-uid')?.value.trim() || profile.uid;
+      const tty = form.querySelector('#prof-tty')?.value.trim() || profile.tty;
+      const pgpKey = form.querySelector('#prof-pgp')?.value.trim() || profile.pgpKey;
 
       const updated = {
         author,
         handle,
         role,
-        description,
-        githubUrl,
-        twitterUrl,
         twitterHandle,
-        email,
+        title: `${author} // Terminal Blog`,
+        description,
+        siteUrl: profile.siteUrl,
         uid,
         tty,
         pgpKey,
+        githubUrl,
+        twitterUrl,
+        email,
+        postsPerPage: profile.postsPerPage || 10,
       };
 
+      // Try local dev server endpoint if running
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-        applyProfile(updated);
-        closeEditorModal();
-        showToast('Profile saved & applied to terminal session');
+        const res = await fetch('/api/save-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updated),
+        });
+        if (res.ok) {
+          applyProfile(updated);
+          closeEditorModal();
+          showToast('Saved directly to profile.json in repository!');
+          return;
+        }
       } catch (err) {
-        console.error('Failed to save profile:', err);
-        showToast('Failed to save to localStorage', true);
+        // Fallback for static production environment
       }
+
+      applyProfile(updated);
+      closeEditorModal();
+      showToast('Updated! Download profile.json to commit to Git.');
+      openExportModal();
     }
 
-    function handleReset() {
-      try {
-        localStorage.removeItem(STORAGE_KEY);
-        applyProfile(defaultConfig);
-        closeEditorModal();
-        showToast('Profile restored to site defaults');
-      } catch (err) {
-        console.error('Failed to reset profile:', err);
-      }
-    }
-
-    // JSON export / import
     function downloadJson() {
-      const p = getEffectiveProfile();
-      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(p, null, 2));
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(profile, null, 2));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute('href', dataStr);
-      downloadAnchor.setAttribute('download', `profile_${(p.author || 'author').toLowerCase().replace(/\s+/g, '_')}.json`);
+      downloadAnchor.setAttribute('download', 'profile.json');
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
       showToast('profile.json downloaded');
     }
 
-    function importJson(file) {
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const parsed = JSON.parse(e.target?.result);
-          if (typeof parsed !== 'object' || !parsed) throw new Error('Invalid JSON format');
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-          applyProfile(getEffectiveProfile());
-          populateForm();
-          showToast('Profile imported successfully');
-        } catch (err) {
-          showToast('Failed to parse JSON file', true);
-        }
-      };
-      reader.readAsText(file);
+    async function copyJson() {
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(profile, null, 2));
+        showToast('profile.json copied to clipboard');
+      } catch {
+        showToast('Failed to copy to clipboard', true);
+      }
     }
 
-    // Attach all event listeners
     function initProfileEditor() {
-      applyProfile(getEffectiveProfile());
+      applyProfile(currentProfile);
 
       const editBtn = document.getElementById('edit-profile-btn');
-      if (editBtn) {
-        editBtn.onclick = openEditorModal;
-      }
-
-      const resetBtn = document.getElementById('reset-profile-btn');
-      if (resetBtn) {
-        resetBtn.onclick = handleReset;
-      }
-
-      const formResetBtn = document.getElementById('prof-form-reset-btn');
-      if (formResetBtn) {
-        formResetBtn.onclick = handleReset;
-      }
+      if (editBtn) editBtn.onclick = openEditorModal;
 
       const exportBtn = document.getElementById('export-config-btn');
-      if (exportBtn) {
-        exportBtn.onclick = openExportModal;
-      }
+      if (exportBtn) exportBtn.onclick = openExportModal;
 
       const closeEditorBtn = document.getElementById('close-editor-btn');
-      if (closeEditorBtn) {
-        closeEditorBtn.onclick = closeEditorModal;
-      }
+      if (closeEditorBtn) closeEditorBtn.onclick = closeEditorModal;
 
       const cancelEditorBtn = document.getElementById('cancel-editor-btn');
-      if (cancelEditorBtn) {
-        cancelEditorBtn.onclick = closeEditorModal;
-      }
+      if (cancelEditorBtn) cancelEditorBtn.onclick = closeEditorModal;
 
       const closeExportBtn = document.getElementById('close-export-btn');
-      if (closeExportBtn) {
-        closeExportBtn.onclick = closeExportModal;
-      }
+      if (closeExportBtn) closeExportBtn.onclick = closeExportModal;
 
       const closeExportBtn2 = document.getElementById('close-export-btn-2');
-      if (closeExportBtn2) {
-        closeExportBtn2.onclick = closeExportModal;
-      }
+      if (closeExportBtn2) closeExportBtn2.onclick = closeExportModal;
 
       const copyExportBtn = document.getElementById('copy-export-code-btn');
       if (copyExportBtn) {
         copyExportBtn.onclick = async () => {
-          const codeEl = document.getElementById('export-code-block');
-          if (codeEl) {
-            try {
-              await navigator.clipboard.writeText(codeEl.textContent || '');
-              const icon = document.getElementById('copy-export-icon');
-              const text = document.getElementById('copy-export-text');
-              if (icon && text) {
-                icon.textContent = '✔';
-                text.textContent = 'Copied!';
-                setTimeout(() => {
-                  icon.textContent = '⎘';
-                  text.textContent = 'Copy Code';
-                }, 2000);
-              }
-              showToast('site.config.ts snippet copied to clipboard');
-            } catch (e) {
-              showToast('Could not copy to clipboard', true);
-            }
+          await copyJson();
+          const text = document.getElementById('copy-export-text');
+          if (text) {
+            text.textContent = 'Copied!';
+            setTimeout(() => { text.textContent = 'Copy JSON'; }, 2000);
           }
         };
       }
 
       const downloadJsonBtn = document.getElementById('prof-download-json-btn');
-      if (downloadJsonBtn) {
-        downloadJsonBtn.onclick = downloadJson;
-      }
+      if (downloadJsonBtn) downloadJsonBtn.onclick = downloadJson;
 
-      const importFileInput = document.getElementById('prof-import-file');
-      if (importFileInput) {
-        importFileInput.onchange = (e) => {
-          const file = e.target.files?.[0];
-          if (file) importJson(file);
-        };
-      }
+      const copyJsonBtn = document.getElementById('prof-copy-json-btn');
+      if (copyJsonBtn) copyJsonBtn.onclick = copyJson;
 
       const form = document.getElementById('profile-editor-form');
-      if (form) {
-        form.onsubmit = handleSave;
-      }
+      if (form) form.onsubmit = handleSave;
 
       const bioInp = document.getElementById('prof-description');
       if (bioInp) {
@@ -767,11 +630,9 @@ const defaultConfig = {
         };
       }
 
-      // Keyboard shortcuts
       document.onkeydown = (e) => {
         const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName || '');
 
-        // 'e' key opens editor if not typing in input
         if (e.key === 'e' && !isInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
           const modal = document.getElementById('profile-editor-modal');
           if (modal && modal.classList.contains('hidden')) {
@@ -780,13 +641,11 @@ const defaultConfig = {
           }
         }
 
-        // Escape closes modals
         if (e.key === 'Escape') {
           closeEditorModal();
           closeExportModal();
         }
 
-        // Ctrl+Enter inside form saves
         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
           const modal = document.getElementById('profile-editor-modal');
           if (modal && !modal.classList.contains('hidden')) {
@@ -797,7 +656,6 @@ const defaultConfig = {
       };
     }
 
-    // Wire to both initial load and Astro ClientRouter page transitions
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initProfileEditor);
     } else {
