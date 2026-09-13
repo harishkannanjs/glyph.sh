@@ -12,5 +12,12 @@
   "githubUrl": "https://github.com/harishkannanjs",
   "twitterUrl": "https://x.com/harishkannanjs",
   "email": "harish@research.local",
-  "postsPerPage": 10
+  "postsPerPage": 10,
+  "giscus": {
+    "enabled": true,
+    "repo": "harishkannanjs/blog",
+    "repoId": "",
+    "category": "General",
+    "categoryId": ""
+  }
 }
