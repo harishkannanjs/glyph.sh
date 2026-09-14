@@ -234,36 +234,69 @@ Open [`profile.json`](file:///X:/Develop/blog/profile.json) in your project root
 
 ## 6. Deployment to GitHub Pages (`github.io`)
 
-The repository includes an automated GitHub Actions deployment workflow at [`.github/workflows/deploy.yml`](file:///X:/Develop/blog/.github/workflows/deploy.yml).
+The repository includes a fully automated GitHub Actions deployment workflow at [`.github/workflows/deploy.yml`](file:///X:/Develop/blog/.github/workflows/deploy.yml) that builds the Astro site, compiles OpenGraph social cards, generates the Pagefind static search index, and publishes the static artifacts directly to GitHub Pages on every push to `master` (or `main`).
 
-### Step 1: Enable GitHub Pages via Actions
-1. Open your repository on GitHub.
-2. Navigate to **Settings** $\rightarrow$ **Pages**.
-3. Under **Build and deployment** $\rightarrow$ **Source**, choose **GitHub Actions**.
+### Step-by-Step GitHub Pages Setup
 
-### Step 2: Set Your Domain in `astro.config.mjs`
-Update the `site` property in [`astro.config.mjs`](file:///X:/Develop/blog/astro.config.mjs):
-```javascript
-export default defineConfig({
-  site: 'https://<your-username>.github.io',
-  output: 'static',
-  // ...
-});
-```
+#### Step 1: Enable GitHub Pages via GitHub Actions (Required)
+By default, GitHub repositories look for a branch like `gh-pages`. You must switch GitHub Pages to use **GitHub Actions**:
+1. Open your repository on GitHub (e.g. `https://github.com/<your-username>/glyph.sh`).
+2. Click **Settings** (top navigation bar).
+3. In the left sidebar under **Code and automation**, click **Pages**.
+4. Under **Build and deployment** $\rightarrow$ **Source**:
+   - Change the dropdown from **Deploy from a branch** to **GitHub Actions**.
+   *(No branch selection is needed; GitHub Actions handles deployment automatically.)*
 
-### Step 3: Push to GitHub
+#### Step 2: Configure Your Site URL
+The blog automatically reads your site URL from [`profile.json`](file:///X:/Develop/blog/profile.json) (which [`astro.config.mjs`](file:///X:/Develop/blog/astro.config.mjs) ingests during build):
+
+- **If using a Custom Domain (e.g. `glyph.sh`):**
+  1. In [`profile.json`](file:///X:/Develop/blog/profile.json), update `siteUrl`:
+     ```json
+     "siteUrl": "https://glyph.sh"
+     ```
+  2. In your GitHub repository $\rightarrow$ **Settings** $\rightarrow$ **Pages** $\rightarrow$ **Custom domain**:
+     - Enter your domain (e.g. `glyph.sh`) and click **Save**.
+     - Configure your DNS provider with GitHub's Pages IP addresses:
+       - `185.199.108.153`
+       - `185.199.109.153`
+       - `185.199.110.153`
+       - `185.199.111.153`
+     - Check **Enforce HTTPS** once the DNS check passes.
+
+- **If using the default GitHub Pages domain (`github.io`):**
+  In [`profile.json`](file:///X:/Develop/blog/profile.json), set:
+  ```json
+  "siteUrl": "https://<your-username>.github.io"
+  ```
+
+#### Step 3: Check Workflow Permissions
+1. In your GitHub repository, go to **Settings** $\rightarrow$ **Actions** $\rightarrow$ **General**.
+2. Scroll to **Workflow permissions** at the bottom.
+3. Ensure **Read and write permissions** is selected, or verify that the workflow permissions in [`.github/workflows/deploy.yml`](file:///X:/Develop/blog/.github/workflows/deploy.yml) (`pages: write`, `id-token: write`) are enabled.
+
+#### Step 4: Push to Deploy
+Push your code to the `master` (or `main`) branch:
 ```bash
 git add .
-git commit -m "chore: setup blog configuration"
-git push origin main
+git commit -m "feat: configure github pages deployment"
+git push origin master
 ```
-The GitHub Action will automatically:
+
+The automated GitHub Action will:
 1. Check out the repository.
-2. Install dependencies via Bun.
-3. Validate types and frontmatter with `astro check`.
-4. Compile static HTML with `astro build`.
-5. Generate the Pagefind static search index.
-6. Deploy the `dist/` directory to GitHub Pages.
+2. Set up the Bun runtime environment.
+3. Install dependencies via `bun install --frozen-lockfile`.
+4. Validate types and frontmatter with `bun run astro check`.
+5. Compile static HTML and generate dynamic OpenGraph preview cards via `bun run build:astro`.
+6. Index all blog content for client-side search via `bun run pagefind`.
+7. Upload and deploy the production static artifacts to GitHub Pages.
+
+#### Step 5: Monitor Deployment & View Your Site
+1. Open the **Actions** tab in your GitHub repository.
+2. Click on the latest workflow run titled **Deploy Terminal Blog to GitHub Pages**.
+3. Once both the **build** and **deploy** jobs turn green, your live site URL will be displayed in the deployment summary.
+
 
 ---
 
