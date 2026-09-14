@@ -887,28 +887,29 @@ function profileDevMiddleware() {
               } catch {}
 
               // 2. Stage all changes
-              await exec('git add -A', { cwd });
+              await exec('git add -A', { cwd, maxBuffer: 20 * 1024 * 1024 });
 
               // 3. Commit if any changes exist
-              const { stdout: statusOut } = await exec('git status --porcelain', { cwd });
+              const { stdout: statusOut } = await exec('git status --porcelain', { cwd, maxBuffer: 20 * 1024 * 1024 });
               let commitOutput = 'Working tree was clean, no new commit needed.';
               let hasNewCommit = false;
 
               if (statusOut.trim()) {
                 if (customMsg) {
-                  const { stdout } = await exec(`git commit -m ${JSON.stringify(customMsg)}`, { cwd });
+                  const { stdout } = await exec(`git commit -m ${JSON.stringify(customMsg)}`, { cwd, maxBuffer: 20 * 1024 * 1024 });
                   commitOutput = stdout.trim();
                 } else {
-                  const { stdout } = await exec('git commit --allow-empty-message -m ""', { cwd });
+                  const { stdout } = await exec('git commit --allow-empty-message -m ""', { cwd, maxBuffer: 20 * 1024 * 1024 });
                   commitOutput = stdout.trim();
                 }
                 hasNewCommit = true;
               }
 
-              // 4. Push to origin with 60s timeout
+              // 4. Push to origin with 90s timeout and generous buffer
               const { stdout: pushStdout, stderr: pushStderr } = await exec(`git push origin ${branch}`, {
                 cwd,
-                timeout: 60000,
+                timeout: 90000,
+                maxBuffer: 20 * 1024 * 1024,
               });
 
               // 5. Get last commit
