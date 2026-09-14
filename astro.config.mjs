@@ -11,7 +11,7 @@ import yaml from 'js-yaml';
 import { slug as githubSlug } from 'github-slugger';
 
 let site = 'https://harishkannanjs.github.io';
-let base = '/glyph.sh';
+let productionBase = '/glyph.sh';
 
 try {
   const profileRaw = fs.readFileSync(path.resolve(process.cwd(), 'profile.json'), 'utf-8');
@@ -24,25 +24,31 @@ try {
     const parsed = new URL(raw);
     site = parsed.origin;
     if (parsed.pathname && parsed.pathname !== '/') {
-      base = parsed.pathname.replace(/\/+$/, '');
+      productionBase = parsed.pathname.replace(/\/+$/, '');
     } else {
-      base = undefined;
+      productionBase = undefined;
     }
   }
 } catch {}
 
+// Critical distinction for seamless developer and user experience:
+// 1. In development ('astro dev' / 'bun run dev'), base must be root (undefined / '/') so localhost serves natively
+//    without asset 404s, Vite HMR failures, or Tailwind stylesheet loading issues.
+// 2. In production ('astro build' / 'astro preview'), base uses the repository subpath ('/glyph.sh') for GitHub Pages.
+const isDev = (process.env.NODE_ENV === 'development' || process.argv.includes('dev') || process.env.npm_lifecycle_event === 'dev') && !process.argv.includes('build');
+const base = isDev ? undefined : productionBase;
 const currentBase = (base || '').replace(/\/+$/, '');
 
 function profileDevMiddleware() {
   return {
     name: 'profile-dev-middleware',
     configureServer(server) {
-      // Seamlessly redirect root or non-base routes in dev mode
       server.middlewares.use((req, res, next) => {
         const url = req.url || '';
         const pathname = url.split('?')[0];
         const query = url.includes('?') ? url.slice(url.indexOf('?')) : '';
 
+        // If base is configured (e.g. preview)
         if (currentBase) {
           if (pathname === '/' || pathname === '') {
             res.writeHead(302, { Location: `${currentBase}/${query}` });
@@ -65,6 +71,15 @@ function profileDevMiddleware() {
             return;
           }
         } else {
+          // Dev mode on localhost (base is root):
+          // If developer enters /glyph.sh or /glyph.sh/... on localhost, forward to root route
+          if (productionBase && (pathname === productionBase || pathname.startsWith(`${productionBase}/`))) {
+            const forwardPath = pathname.slice(productionBase.length) || '/';
+            res.writeHead(302, { Location: `${forwardPath}${query}` });
+            res.end();
+            return;
+          }
+          // Prevent Vite dev server from resolving /profile to root profile.json ES module
           if (pathname === '/profile') {
             res.writeHead(302, { Location: `/profile/${query}` });
             res.end();
@@ -76,8 +91,8 @@ function profileDevMiddleware() {
 
       const registerApi = (endpoint, handler) => {
         server.middlewares.use(endpoint, handler);
-        if (currentBase) {
-          server.middlewares.use(`${currentBase}${endpoint}`, handler);
+        if (productionBase) {
+          server.middlewares.use(`${productionBase}${endpoint}`, handler);
         }
       };
 

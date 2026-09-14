@@ -75,6 +75,7 @@ const avatarSrc = siteConfig.avatar || siteConfig.logo ? getRelativePath(siteCon
           alt={siteConfig.githubUsername}
           class={`w-full h-full object-cover ${avatarSrc ? '' : 'hidden'}`}
           data-header-avatar
+          onerror="this.classList.add('hidden'); const fallback = this.nextElementSibling; if (fallback) fallback.classList.remove('hidden');"
         />
         <svg
           xmlns="http://www.w3.org/2000/svg"

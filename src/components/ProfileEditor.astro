@@ -395,10 +395,18 @@ const currentProfile = {
   </div>
 </div>
 
-<script is:inline define:vars={{ currentProfile }}>
+<script is:inline define:vars={{ currentProfile, baseUrl: getRelativePath('/') }}>
   (function () {
     let profile = { ...currentProfile };
     const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+    function resolveAssetUrl(url) {
+      if (!url) return '';
+      if (/^(?:[a-z]+:)?\/\//i.test(url) || url.startsWith('data:')) return url;
+      const base = (typeof baseUrl !== 'undefined' ? baseUrl : '/').replace(/\/+$/, '');
+      const clean = url.replace(/^\/+/, '');
+      return base ? `${base}/${clean}` : `/${clean}`;
+    }
 
     function updateAccessUI() {
       const devToolbar = document.getElementById('profile-dev-toolbar');
@@ -439,7 +447,8 @@ const currentProfile = {
 
       // Update Avatar / Logo Image & Fallback
       const hasLogo = Boolean(p.avatar || p.logo);
-      const logoSrc = p.avatar || p.logo || '';
+      const rawLogo = p.avatar || p.logo || '';
+      const logoSrc = resolveAssetUrl(rawLogo);
 
       document.querySelectorAll('[data-profile-logo-img]').forEach((el) => {
         if (hasLogo) {
@@ -804,7 +813,7 @@ const currentProfile = {
           }
 
           const data = await res.json();
-          const timestampedUrl = `${data.url}?t=${Date.now()}`;
+          const timestampedUrl = `${resolveAssetUrl(data.url)}?t=${Date.now()}`;
           profile.avatar = data.url;
           profile.logo = data.url;
 
@@ -865,8 +874,9 @@ const currentProfile = {
     }
 
     function initProfileEditor() {
-      applyProfile(currentProfile);
       updateAccessUI();
+      if (!isDev) return;
+      applyProfile(currentProfile);
 
       const editBtn = document.getElementById('edit-profile-btn');
       if (editBtn) editBtn.onclick = openEditorModal;

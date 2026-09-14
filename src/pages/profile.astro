@@ -72,6 +72,7 @@ const authorTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1] || a[0].
               alt={`${siteConfig.author} Logo`}
               class={`w-full h-full object-cover ${siteConfig.avatar || siteConfig.logo ? '' : 'hidden'}`}
               data-profile-logo-img
+              onerror="this.classList.add('hidden'); const fallback = document.getElementById('profile-avatar-fallback'); if (fallback) fallback.classList.remove('hidden');"
             />
             <div
               id="profile-avatar-fallback"
