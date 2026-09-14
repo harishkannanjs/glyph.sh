@@ -41,6 +41,16 @@ const currentProfile = {
   >
     <span>⎘ profile.json</span>
   </button>
+
+  <button
+    id="git-push-btn"
+    type="button"
+    class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-container border border-outline-variant hover:border-primary text-primary hover:text-primary text-[11px] rounded-[2px] cursor-pointer transition-colors"
+    title="Push current local codebase changes to GitHub repository (Localhost only)"
+  >
+    <span class="font-bold">↑</span>
+    <span>push to github</span>
+  </button>
 </div>
 
 <!-- Floating Terminal Toast Notification -->
@@ -395,6 +405,157 @@ const currentProfile = {
   </div>
 </div>
 
+<!-- Push to GitHub Modal Dialog (Strictly Localhost Only) -->
+<div
+  id="git-push-modal"
+  class="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 hidden font-mono"
+  style="display: none;"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="git-push-title"
+>
+  <div class="w-full max-w-[640px] max-h-[90vh] flex flex-col bg-surface border border-outline rounded-[2px] shadow-2xl overflow-hidden">
+    <!-- Terminal Header Bar -->
+    <div class="flex items-center justify-between px-4 py-2.5 bg-surface-container border-b border-outline-variant select-none">
+      <div class="flex items-center gap-2 text-[12px]">
+        <span class="w-2.5 h-2.5 rounded-full bg-error inline-block"></span>
+        <span class="w-2.5 h-2.5 rounded-full bg-primary inline-block"></span>
+        <span class="w-2.5 h-2.5 rounded-full bg-outline inline-block"></span>
+        <span id="git-push-title" class="font-semibold text-on-surface ml-1">
+          git push — Push Codebase to GitHub
+        </span>
+      </div>
+      <button
+        id="close-git-push-btn"
+        type="button"
+        class="text-on-surface-variant hover:text-primary text-[14px] leading-none px-1.5 py-0.5 border border-transparent hover:border-outline-variant rounded-[2px] cursor-pointer"
+        title="Close (Esc)"
+      >
+        ✕
+      </button>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="p-4 sm:p-5 flex-1 overflow-y-auto space-y-3.5 text-[12px]">
+      <!-- Repo Coordinates & Health Card -->
+      <div class="p-3 bg-surface-container-low border border-outline-variant rounded-[2px] space-y-2">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-primary font-bold shrink-0">&gt;</span>
+            <span class="text-on-surface font-semibold text-[11px] shrink-0">Repository:</span>
+            <span id="git-push-remote" class="text-primary text-[11px] font-mono truncate max-w-[340px]">Detecting...</span>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span class="text-outline text-[10px]">branch:</span>
+            <span id="git-push-branch" class="px-1.5 py-0.5 bg-surface-container border border-outline-variant text-primary text-[10px] rounded-[2px] font-bold">master</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-[11px] pt-1.5 border-t border-outline-variant/60">
+          <div class="flex items-center gap-2">
+            <span id="git-push-status-dot" class="w-2 h-2 rounded-full bg-outline inline-block"></span>
+            <span id="git-push-status-text" class="text-on-surface-variant">Checking local git changes...</span>
+          </div>
+          <button
+            type="button"
+            id="git-refresh-status-btn"
+            class="text-[10px] text-primary hover:underline cursor-pointer"
+            title="Re-check git status"
+          >
+            ⟳ refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Pending Changes File List (Shown if modified files exist) -->
+      <div id="git-changed-files-box" class="space-y-1.5 hidden">
+        <div class="flex items-center justify-between text-[11px]">
+          <span class="text-on-surface font-semibold">Pending Local Changes to Commit:</span>
+          <span id="git-changed-files-count" class="text-outline text-[10px]">0 files</span>
+        </div>
+        <div
+          id="git-changed-files-list"
+          class="p-2.5 bg-surface-container-lowest border border-outline-variant text-[11px] text-on-surface font-mono max-h-[110px] overflow-y-auto rounded-[2px] space-y-1"
+        ></div>
+      </div>
+
+      <!-- Commit Message Input -->
+      <div class="space-y-1.5">
+        <label for="git-commit-msg-input" class="block text-[11px] font-semibold text-on-surface">
+          Commit Message <span class="text-outline font-normal">(optional — leave empty for no commit message):</span>
+        </label>
+        <input
+          type="text"
+          id="git-commit-msg-input"
+          placeholder="Leave empty or enter commit message..."
+          class="w-full bg-surface-container px-3 py-1.5 text-[12px] border border-outline-variant focus:border-primary focus:outline-none text-on-surface rounded-[2px]"
+        />
+      </div>
+
+      <!-- Equivalent Terminal Command Block -->
+      <div class="p-3 bg-surface-container-lowest border border-outline-variant rounded-[2px] space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-outline text-[10px] font-semibold uppercase tracking-wider">Equivalent Terminal Command:</span>
+          <button
+            type="button"
+            id="copy-git-cmd-btn"
+            class="text-[10px] text-primary hover:underline cursor-pointer flex items-center gap-1"
+            title="Copy command to clipboard"
+          >
+            <span>⎘</span>
+            <span id="copy-git-cmd-text">Copy Command</span>
+          </button>
+        </div>
+        <pre id="git-cmd-preview" class="text-[11px] text-primary overflow-x-auto select-all leading-tight">git add -A &amp;&amp; git commit --allow-empty-message -m "" &amp;&amp; git push origin master</pre>
+      </div>
+
+      <!-- Real-time Console Log Output -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between text-[11px]">
+          <span class="text-outline text-[10px] font-semibold uppercase tracking-wider">Console Output:</span>
+          <span id="git-console-status" class="text-[10px] text-outline">Ready</span>
+        </div>
+        <pre
+          id="git-console-output"
+          class="p-3 bg-surface-container-lowest border border-outline-variant text-[11px] text-on-surface-variant font-mono h-[110px] overflow-y-auto rounded-[2px] leading-relaxed select-all whitespace-pre-wrap"
+        >Ready to push local codebase to GitHub. Click "Push to GitHub" below or run the terminal command above.</pre>
+      </div>
+    </div>
+
+    <!-- Modal Footer Actions -->
+    <div class="flex items-center justify-between gap-2 px-4 py-3 bg-surface-container border-t border-outline-variant">
+      <a
+        id="git-view-repo-link"
+        href="https://github.com/harishkannanjs/glyph.sh"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-[11px] text-primary hover:underline flex items-center gap-1 hidden sm:flex"
+      >
+        <span>Open GitHub Repo</span>
+        <span>↗</span>
+      </a>
+
+      <div class="flex items-center gap-2 ml-auto">
+        <button
+          type="button"
+          id="close-git-push-btn-2"
+          class="px-3 py-1.5 bg-surface-container border border-outline-variant hover:border-outline text-on-surface text-[11px] rounded-[2px] cursor-pointer transition-colors"
+        >
+          Close
+        </button>
+        <button
+          type="button"
+          id="execute-git-push-btn"
+          class="px-3.5 py-1.5 bg-primary text-on-primary font-semibold text-[11px] rounded-[2px] cursor-pointer hover:opacity-90 transition-opacity flex items-center gap-1.5"
+        >
+          <span id="git-push-btn-icon">↑</span>
+          <span id="git-push-btn-text">Push to GitHub</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script is:inline define:vars={{ currentProfile, baseUrl: getRelativePath('/') }}>
   (function () {
     let profile = { ...currentProfile };
@@ -411,6 +572,7 @@ const currentProfile = {
     function updateAccessUI() {
       const devToolbar = document.getElementById('profile-dev-toolbar');
       const logoUploadOverlayBtn = document.getElementById('logo-upload-overlay-btn');
+      const gitPushModal = document.getElementById('git-push-modal');
       if (isDev) {
         devToolbar?.classList.remove('hidden');
         devToolbar?.classList.add('flex');
@@ -421,6 +583,7 @@ const currentProfile = {
         devToolbar?.classList.remove('flex');
         logoUploadOverlayBtn?.classList.add('hidden');
         logoUploadOverlayBtn?.classList.remove('flex');
+        gitPushModal?.remove();
       }
     }
 
@@ -873,6 +1036,236 @@ const currentProfile = {
       }
     }
 
+    let currentGitInfo = {
+      branch: 'master',
+      remote: '',
+      changedFiles: [],
+      unpushedCommits: 0,
+      isClean: true,
+      lastCommit: '',
+    };
+
+    function updateGitCommandPreview() {
+      const msgInput = document.getElementById('git-commit-msg-input');
+      const previewEl = document.getElementById('git-cmd-preview');
+      if (!previewEl) return;
+
+      const branch = currentGitInfo.branch || 'master';
+      const rawMsg = msgInput ? msgInput.value.trim() : '';
+      const commitPart = rawMsg
+        ? `git commit -m "${rawMsg.replace(/"/g, '\\"')}"`
+        : `git commit --allow-empty-message -m ""`;
+
+      previewEl.textContent = `git add -A && ${commitPart} && git push origin ${branch}`;
+    }
+
+    async function fetchGitStatus() {
+      if (!isDev) return;
+      const remoteEl = document.getElementById('git-push-remote');
+      const branchEl = document.getElementById('git-push-branch');
+      const dotEl = document.getElementById('git-push-status-dot');
+      const textEl = document.getElementById('git-push-status-text');
+      const changedFilesBox = document.getElementById('git-changed-files-box');
+      const changedFilesList = document.getElementById('git-changed-files-list');
+      const changedFilesCount = document.getElementById('git-changed-files-count');
+      const repoLink = document.getElementById('git-view-repo-link');
+
+      if (textEl) textEl.textContent = 'Checking local repository status...';
+      if (dotEl) {
+        dotEl.className = 'w-2 h-2 rounded-full bg-outline inline-block animate-pulse';
+      }
+
+      try {
+        const res = await fetch('/api/git-status');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Failed to query git status');
+
+        currentGitInfo = data;
+
+        if (branchEl) branchEl.textContent = data.branch || 'master';
+        if (remoteEl) {
+          remoteEl.textContent = data.remote || (profile.githubUrl || 'origin');
+          remoteEl.title = data.remote || '';
+        }
+
+        if (repoLink && data.remote) {
+          const webUrl = data.remote.replace(/\.git$/i, '').replace(/^git@github\.com:/i, 'https://github.com/');
+          repoLink.href = webUrl;
+          repoLink.classList.remove('hidden');
+          repoLink.classList.add('flex');
+        }
+
+        const changesCount = (data.changedFiles || []).length;
+        if (changesCount > 0) {
+          if (dotEl) dotEl.className = 'w-2 h-2 rounded-full bg-primary inline-block';
+          if (textEl) textEl.textContent = `${changesCount} pending file(s) to commit`;
+
+          if (changedFilesBox && changedFilesList) {
+            changedFilesBox.classList.remove('hidden');
+            if (changedFilesCount) changedFilesCount.textContent = `${changesCount} file(s)`;
+            changedFilesList.innerHTML = data.changedFiles
+              .map((line) => {
+                const parts = line.split(/\s+/);
+                const code = parts[0] || 'M';
+                const file = parts.slice(1).join(' ') || line;
+                let colorClass = 'text-primary';
+                if (code.includes('D')) colorClass = 'text-error';
+                else if (code.includes('?')) colorClass = 'text-outline';
+                return `<div class="flex items-center justify-between text-[10px]"><span class="truncate font-mono">${file}</span><span class="${colorClass} font-bold font-mono shrink-0 ml-2">${code}</span></div>`;
+              })
+              .join('');
+          }
+        } else {
+          if (dotEl) dotEl.className = 'w-2 h-2 rounded-full bg-outline inline-block';
+          const unpushed = data.unpushedCommits || 0;
+          if (textEl) {
+            textEl.textContent = unpushed > 0
+              ? `Working tree clean (${unpushed} unpushed commit${unpushed > 1 ? 's' : ''})`
+              : 'Working tree clean, up-to-date with remote';
+          }
+          if (changedFilesBox) changedFilesBox.classList.add('hidden');
+        }
+
+        updateGitCommandPreview();
+      } catch (err) {
+        if (dotEl) dotEl.className = 'w-2 h-2 rounded-full bg-error inline-block';
+        if (textEl) textEl.textContent = `Status check failed: ${err.message}`;
+      }
+    }
+
+    function openGitPushModal() {
+      if (!isDev) return;
+      const modal = document.getElementById('git-push-modal');
+      if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.remove('hidden');
+      }
+      fetchGitStatus();
+      const consoleOut = document.getElementById('git-console-output');
+      if (consoleOut) {
+        consoleOut.textContent = 'Ready to push local codebase to GitHub.\nClick "Push to GitHub" to proceed or run the terminal command shown above.';
+      }
+      const consoleStatus = document.getElementById('git-console-status');
+      if (consoleStatus) {
+        consoleStatus.textContent = 'Ready';
+        consoleStatus.className = 'text-[10px] text-outline';
+      }
+    }
+
+    function closeGitPushModal() {
+      const modal = document.getElementById('git-push-modal');
+      if (modal) {
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+      }
+    }
+
+    async function executeGitPush() {
+      if (!isDev) return;
+      const btn = document.getElementById('execute-git-push-btn');
+      const icon = document.getElementById('git-push-btn-icon');
+      const text = document.getElementById('git-push-btn-text');
+      const consoleOut = document.getElementById('git-console-output');
+      const consoleStatus = document.getElementById('git-console-status');
+      const msgInput = document.getElementById('git-commit-msg-input');
+
+      const commitMsg = msgInput ? msgInput.value.trim() : '';
+
+      if (btn) btn.disabled = true;
+      if (icon) icon.textContent = '⏳';
+      if (text) text.textContent = 'Pushing to GitHub...';
+      if (consoleStatus) {
+        consoleStatus.textContent = 'Pushing...';
+        consoleStatus.className = 'text-[10px] text-primary animate-pulse';
+      }
+
+      const branch = currentGitInfo.branch || 'master';
+      if (consoleOut) {
+        consoleOut.textContent = `> git add -A\n> git commit ${commitMsg ? `-m "${commitMsg}"` : '--allow-empty-message -m ""'}\n> git push origin ${branch}\n\nRunning... Please wait.`;
+      }
+
+      try {
+        const res = await fetch('/api/git-push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: commitMsg }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          if (consoleStatus) {
+            consoleStatus.textContent = 'Success';
+            consoleStatus.className = 'text-[10px] text-primary font-bold';
+          }
+          if (consoleOut) {
+            consoleOut.textContent = [
+              `✔ [SUCCESS] Codebase pushed to origin/${data.branch || branch}!`,
+              `----------------------------------------------------`,
+              data.hasNewCommit ? `Commit Output:\n${data.commitOutput}` : `Commit: Working tree clean`,
+              `----------------------------------------------------`,
+              `Push Output:\n${data.pushOutput || 'Everything up-to-date'}`,
+              `----------------------------------------------------`,
+              `Latest commit: ${data.lastCommit || 'N/A'}`,
+              `GitHub Pages deployment action triggered automatically.`,
+            ].join('\n');
+          }
+          if (icon) icon.textContent = '✔';
+          if (text) text.textContent = 'Pushed Successfully!';
+          showToast('✔ Codebase pushed to GitHub successfully!');
+          if (msgInput) msgInput.value = '';
+
+          // Refresh status after 2s
+          setTimeout(() => {
+            fetchGitStatus();
+            if (btn) btn.disabled = false;
+            if (icon) icon.textContent = '↑';
+            if (text) text.textContent = 'Push to GitHub';
+          }, 2500);
+        } else {
+          throw new Error(data.error || data.message || 'Push failed');
+        }
+      } catch (err) {
+        if (consoleStatus) {
+          consoleStatus.textContent = 'Failed';
+          consoleStatus.className = 'text-[10px] text-error font-bold';
+        }
+        if (consoleOut) {
+          const previewEl = document.getElementById('git-cmd-preview');
+          const cmd = previewEl ? previewEl.textContent : `git add -A && git push origin ${branch}`;
+          consoleOut.textContent = [
+            `✖ [ERROR] Failed to push to remote:`,
+            err.message,
+            `----------------------------------------------------`,
+            `If your git remote requires interactive authentication (SSH passphrase, browser login, or token), run this command directly in your terminal:`,
+            ``,
+            `  ${cmd}`,
+          ].join('\n');
+        }
+        if (btn) btn.disabled = false;
+        if (icon) icon.textContent = '↑';
+        if (text) text.textContent = 'Retry Push';
+        showToast('Push failed. Check console output.', true);
+      }
+    }
+
+    async function copyGitCommand() {
+      const previewEl = document.getElementById('git-cmd-preview');
+      const copyTextEl = document.getElementById('copy-git-cmd-text');
+      if (!previewEl) return;
+      try {
+        await navigator.clipboard.writeText(previewEl.textContent || '');
+        if (copyTextEl) {
+          copyTextEl.textContent = 'Copied!';
+          setTimeout(() => { copyTextEl.textContent = 'Copy Command'; }, 2000);
+        }
+        showToast('Command copied to clipboard');
+      } catch {
+        showToast('Failed to copy to clipboard', true);
+      }
+    }
+
     function initProfileEditor() {
       updateAccessUI();
       if (!isDev) return;
@@ -895,6 +1288,27 @@ const currentProfile = {
 
       const closeExportBtn2 = document.getElementById('close-export-btn-2');
       if (closeExportBtn2) closeExportBtn2.onclick = closeExportModal;
+
+      const gitPushBtn = document.getElementById('git-push-btn');
+      if (gitPushBtn) gitPushBtn.onclick = openGitPushModal;
+
+      const closeGitPushBtn = document.getElementById('close-git-push-btn');
+      if (closeGitPushBtn) closeGitPushBtn.onclick = closeGitPushModal;
+
+      const closeGitPushBtn2 = document.getElementById('close-git-push-btn-2');
+      if (closeGitPushBtn2) closeGitPushBtn2.onclick = closeGitPushModal;
+
+      const gitRefreshBtn = document.getElementById('git-refresh-status-btn');
+      if (gitRefreshBtn) gitRefreshBtn.onclick = fetchGitStatus;
+
+      const executeGitPushBtn = document.getElementById('execute-git-push-btn');
+      if (executeGitPushBtn) executeGitPushBtn.onclick = executeGitPush;
+
+      const copyGitCmdBtn = document.getElementById('copy-git-cmd-btn');
+      if (copyGitCmdBtn) copyGitCmdBtn.onclick = copyGitCommand;
+
+      const gitCommitMsgInput = document.getElementById('git-commit-msg-input');
+      if (gitCommitMsgInput) gitCommitMsgInput.oninput = updateGitCommandPreview;
 
       const copyExportBtn = document.getElementById('copy-export-code-btn');
       if (copyExportBtn) {
@@ -975,6 +1389,7 @@ const currentProfile = {
         if (e.key === 'Escape') {
           closeEditorModal();
           closeExportModal();
+          closeGitPushModal();
         }
 
         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {

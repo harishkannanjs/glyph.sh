@@ -7,8 +7,12 @@ import rehypeKatex from 'rehype-katex';
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { promisify } from 'node:util';
+import { exec as execCb } from 'node:child_process';
 import yaml from 'js-yaml';
 import { slug as githubSlug } from 'github-slugger';
+
+const exec = promisify(execCb);
 
 let site = 'https://harishkannanjs.github.io';
 let productionBase = '/glyph.sh';
@@ -762,6 +766,146 @@ function profileDevMiddleware() {
             } catch (err) {
               res.writeHead(500, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+        } else {
+          res.writeHead(405, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+        }
+      });
+
+      registerApi('/api/git-status', async (req, res) => {
+        if (req.method === 'GET') {
+          try {
+            const cwd = process.cwd();
+            let branch = 'master';
+            try {
+              const { stdout } = await exec('git branch --show-current', { cwd });
+              branch = stdout.trim() || 'master';
+            } catch {}
+
+            let remote = '';
+            try {
+              const { stdout } = await exec('git remote get-url origin', { cwd });
+              remote = stdout.trim();
+            } catch {}
+
+            let changedFiles = [];
+            try {
+              const { stdout } = await exec('git status --porcelain', { cwd });
+              const raw = stdout.trim();
+              if (raw) {
+                changedFiles = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+              }
+            } catch {}
+
+            let unpushedCommits = 0;
+            try {
+              const { stdout } = await exec(`git log origin/${branch}..HEAD --oneline`, { cwd });
+              const raw = stdout.trim();
+              if (raw) {
+                unpushedCommits = raw.split(/\r?\n/).length;
+              }
+            } catch {}
+
+            let lastCommit = '';
+            try {
+              const { stdout } = await exec('git log -1 --oneline', { cwd });
+              lastCommit = stdout.trim();
+            } catch {}
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              success: true,
+              branch,
+              remote,
+              changedFiles,
+              unpushedCommits,
+              lastCommit,
+              isClean: changedFiles.length === 0 && unpushedCommits === 0,
+            }));
+          } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: err.message }));
+          }
+        } else {
+          res.writeHead(405, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+        }
+      });
+
+      registerApi('/api/git-push', (req, res) => {
+        if (req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk) => {
+            body += chunk;
+          });
+          req.on('end', async () => {
+            try {
+              let payload = {};
+              try {
+                payload = JSON.parse(body || '{}');
+              } catch {}
+              const customMsg = typeof payload.message === 'string' ? payload.message.trim() : '';
+              const cwd = process.cwd();
+
+              // 1. Current branch
+              let branch = 'master';
+              try {
+                const { stdout } = await exec('git branch --show-current', { cwd });
+                branch = stdout.trim() || 'master';
+              } catch {}
+
+              // 2. Stage all changes
+              await exec('git add -A', { cwd });
+
+              // 3. Commit if any changes exist
+              const { stdout: statusOut } = await exec('git status --porcelain', { cwd });
+              let commitOutput = 'Working tree was clean, no new commit needed.';
+              let hasNewCommit = false;
+
+              if (statusOut.trim()) {
+                if (customMsg) {
+                  const { stdout } = await exec(`git commit -m ${JSON.stringify(customMsg)}`, { cwd });
+                  commitOutput = stdout.trim();
+                } else {
+                  const { stdout } = await exec('git commit --allow-empty-message -m ""', { cwd });
+                  commitOutput = stdout.trim();
+                }
+                hasNewCommit = true;
+              }
+
+              // 4. Push to origin with 60s timeout
+              const { stdout: pushStdout, stderr: pushStderr } = await exec(`git push origin ${branch}`, {
+                cwd,
+                timeout: 60000,
+              });
+
+              // 5. Get last commit
+              let lastCommit = '';
+              try {
+                const { stdout } = await exec('git log -1 --oneline', { cwd });
+                lastCommit = stdout.trim();
+              } catch {}
+
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({
+                success: true,
+                branch,
+                hasNewCommit,
+                commitOutput,
+                pushOutput: (pushStdout + '\n' + pushStderr).trim(),
+                lastCommit,
+                message: `Successfully pushed to origin/${branch}!`,
+              }));
+            } catch (err) {
+              const errText = (err.stderr || err.stdout || err.message || '').toString().trim();
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({
+                success: false,
+                error: errText,
+                message: 'Git push encountered an issue. You can run the terminal command shown below.',
+              }));
             }
           });
         } else {
