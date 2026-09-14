@@ -1434,7 +1434,12 @@ const isDevServer = import.meta.env.DEV;
         `;
 
         dirArticles.forEach((blog) => {
-          const blogUrl = blog.url || (blog.slug ? `/blog/${blog.slug}` : `/blog/${blog.type === 'series' ? `series/${blog.seriesName}/` : 'standalone/'}${blog.filename.replace(/\.(md|mdx)$/i, '').toLowerCase()}`);
+          let blogUrl = blog.url;
+          if (!blogUrl) {
+            const rel = blog.slug ? `/blog/${blog.slug}` : `/blog/${blog.type === 'series' ? `series/${blog.seriesName}/` : 'standalone/'}${blog.filename.replace(/\.(md|mdx)$/i, '').toLowerCase()}`;
+            const currentBase = window.location.pathname.startsWith('/glyph.sh') ? '/glyph.sh' : '';
+            blogUrl = currentBase ? `${currentBase}${rel}` : rel;
+          }
           html += `
             <div class="p-2.5 px-3 flex items-center justify-between gap-3 hover:bg-surface-container/40 transition-colors">
               <div class="flex items-center gap-2.5 overflow-hidden min-w-0">

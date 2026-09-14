@@ -10,24 +10,78 @@ import path from 'node:path';
 import yaml from 'js-yaml';
 import { slug as githubSlug } from 'github-slugger';
 
+let site = 'https://harishkannanjs.github.io';
+let base = '/glyph.sh';
+
+try {
+  const profileRaw = fs.readFileSync(path.resolve(process.cwd(), 'profile.json'), 'utf-8');
+  const profileData = JSON.parse(profileRaw);
+  if (profileData.siteUrl && profileData.siteUrl.trim()) {
+    let raw = profileData.siteUrl.trim();
+    if (!/^https?:\/\//i.test(raw)) {
+      raw = `https://${raw}`;
+    }
+    const parsed = new URL(raw);
+    site = parsed.origin;
+    if (parsed.pathname && parsed.pathname !== '/') {
+      base = parsed.pathname.replace(/\/+$/, '');
+    } else {
+      base = undefined;
+    }
+  }
+} catch {}
+
+const currentBase = (base || '').replace(/\/+$/, '');
+
 function profileDevMiddleware() {
   return {
     name: 'profile-dev-middleware',
     configureServer(server) {
-      // Prevent Vite dev server from resolving /profile to root profile.json ES module
+      // Seamlessly redirect root or non-base routes in dev mode
       server.middlewares.use((req, res, next) => {
         const url = req.url || '';
         const pathname = url.split('?')[0];
-        if (pathname === '/profile') {
-          const query = url.includes('?') ? url.slice(url.indexOf('?')) : '';
-          res.writeHead(302, { Location: `/profile/${query}` });
-          res.end();
-          return;
+        const query = url.includes('?') ? url.slice(url.indexOf('?')) : '';
+
+        if (currentBase) {
+          if (pathname === '/' || pathname === '') {
+            res.writeHead(302, { Location: `${currentBase}/${query}` });
+            res.end();
+            return;
+          }
+          if (pathname === '/profile' || pathname === '/profile/') {
+            res.writeHead(302, { Location: `${currentBase}/profile/${query}` });
+            res.end();
+            return;
+          }
+          if (pathname === `${currentBase}/profile`) {
+            res.writeHead(302, { Location: `${currentBase}/profile/${query}` });
+            res.end();
+            return;
+          }
+          if (pathname.startsWith('/blog') || pathname.startsWith('/about')) {
+            res.writeHead(302, { Location: `${currentBase}${pathname}${query}` });
+            res.end();
+            return;
+          }
+        } else {
+          if (pathname === '/profile') {
+            res.writeHead(302, { Location: `/profile/${query}` });
+            res.end();
+            return;
+          }
         }
         next();
       });
 
-      server.middlewares.use('/api/save-profile', (req, res) => {
+      const registerApi = (endpoint, handler) => {
+        server.middlewares.use(endpoint, handler);
+        if (currentBase) {
+          server.middlewares.use(`${currentBase}${endpoint}`, handler);
+        }
+      };
+
+      registerApi('/api/save-profile', (req, res) => {
         if (req.method === 'POST') {
           let body = '';
           req.on('data', (chunk) => {
@@ -51,7 +105,7 @@ function profileDevMiddleware() {
         }
       });
 
-      server.middlewares.use('/api/upload-logo', (req, res) => {
+      registerApi('/api/upload-logo', (req, res) => {
         if (req.method === 'POST') {
           let body = '';
           req.on('data', (chunk) => {
@@ -167,7 +221,7 @@ function profileDevMiddleware() {
         return null;
       }
 
-      server.middlewares.use('/api/series-info', (req, res) => {
+      registerApi('/api/series-info', (req, res) => {
         if (req.method === 'GET') {
           try {
             const seriesDir = path.resolve(process.cwd(), 'Blogs', 'series');
@@ -267,7 +321,7 @@ function profileDevMiddleware() {
         }
       });
 
-      server.middlewares.use('/api/upload-blog', (req, res) => {
+      registerApi('/api/upload-blog', (req, res) => {
         if (req.method === 'POST') {
           let body = '';
           req.on('data', (chunk) => {
@@ -495,7 +549,7 @@ function profileDevMiddleware() {
                   : `Stored in ${relDir}/${cleanFilename}`,
                 filePath: relFilePath,
                 postSlug: postSlug,
-                url: `/blog/${postSlug}`,
+                url: currentBase ? `${currentBase}/blog/${postSlug}` : `/blog/${postSlug}`,
                 series: cleanSeries,
                 episode: episodeNum,
                 totalEpisodes: frontmatter.seriesTotal,
@@ -511,7 +565,7 @@ function profileDevMiddleware() {
         }
       });
 
-      server.middlewares.use('/api/list-blogs', (req, res) => {
+      registerApi('/api/list-blogs', (req, res) => {
         if (req.method === 'GET') {
           try {
             const blogsRoot = path.resolve(process.cwd(), 'Blogs');
@@ -553,7 +607,7 @@ function profileDevMiddleware() {
                   title,
                   date,
                   slug: postSlug,
-                  url: `/blog/${postSlug}`,
+                  url: currentBase ? `${currentBase}/blog/${postSlug}` : `/blog/${postSlug}`,
                 });
               }
             }
@@ -614,7 +668,7 @@ function profileDevMiddleware() {
                     title,
                     date,
                     slug: postSlug,
-                    url: `/blog/${postSlug}`,
+                    url: currentBase ? `${currentBase}/blog/${postSlug}` : `/blog/${postSlug}`,
                   });
                 }
               }
@@ -632,7 +686,7 @@ function profileDevMiddleware() {
         }
       });
 
-      server.middlewares.use('/api/delete-blog', (req, res) => {
+      registerApi('/api/delete-blog', (req, res) => {
         if (req.method === 'POST') {
           let body = '';
           req.on('data', (chunk) => {
@@ -705,26 +759,7 @@ function profileDevMiddleware() {
   };
 }
 
-let site = 'https://harishkannanjs.github.io';
-let base = '/glyph.sh';
-
-try {
-  const profileRaw = fs.readFileSync(path.resolve(process.cwd(), 'profile.json'), 'utf-8');
-  const profileData = JSON.parse(profileRaw);
-  if (profileData.siteUrl && profileData.siteUrl.trim()) {
-    let raw = profileData.siteUrl.trim();
-    if (!/^https?:\/\//i.test(raw)) {
-      raw = `https://${raw}`;
-    }
-    const parsed = new URL(raw);
-    site = parsed.origin;
-    if (parsed.pathname && parsed.pathname !== '/') {
-      base = parsed.pathname.replace(/\/+$/, '');
-    } else {
-      base = undefined;
-    }
-  }
-} catch {}
+// https://astro.build/config
 
 // https://astro.build/config
 export default defineConfig({

@@ -118,6 +118,7 @@ const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1] || a[0].
 </div>
 
 <script is:inline define:vars={{ initialPosts: searchData, pagefindUrl: getRelativePath('/pagefind/pagefind.js') }}>
+  // @ts-nocheck
   (function () {
     let activeIndex = -1;
     let filteredItems = [];
@@ -127,7 +128,8 @@ const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1] || a[0].
     // Load pagefind if available
     async function loadPagefind() {
       try {
-        const targetUrl = window['pagefindUrl'] || '/glyph.sh/pagefind/pagefind.js';
+        // @ts-ignore
+        const targetUrl = typeof pagefindUrl !== 'undefined' ? pagefindUrl : '/pagefind/pagefind.js';
         pagefind = await import(/* @vite-ignore */ targetUrl);
         await pagefind.init();
       } catch (e) {

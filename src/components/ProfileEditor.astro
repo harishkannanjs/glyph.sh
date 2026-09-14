@@ -1,5 +1,5 @@
 ---
-import { siteConfig } from '@/site.config';
+import { siteConfig, getRelativePath } from '@/site.config';
 
 const currentProfile = {
   author: siteConfig.author !== 'Author' ? siteConfig.author : '',
@@ -96,7 +96,7 @@ const currentProfile = {
           <div class="w-12 h-12 shrink-0 bg-surface-container border border-outline-variant relative overflow-hidden flex items-center justify-center rounded-[2px]">
             <img
               id="modal-logo-preview-img"
-              src={currentProfile.avatar || ''}
+              src={currentProfile.avatar ? getRelativePath(currentProfile.avatar) : ''}
               alt="Logo Preview"
               class={`w-full h-full object-cover ${currentProfile.avatar ? '' : 'hidden'}`}
             />

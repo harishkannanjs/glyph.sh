@@ -1,4 +1,6 @@
 ---
+import { getRelativePath } from '@/site.config';
+
 interface Props {
   src: string;
   title?: string;
@@ -17,6 +19,7 @@ const {
   speed = 1,
 } = Astro.props;
 
+const resolvedSrc = getRelativePath(src);
 const containerId = `asciinema-${Math.random().toString(36).substring(2, 9)}`;
 ---
 
@@ -36,7 +39,7 @@ const containerId = `asciinema-${Math.random().toString(36).substring(2, 9)}`;
   <div
     id={containerId}
     class="asciinema-player-mount p-2 bg-surface-container-lowest"
-    data-src={src}
+    data-src={resolvedSrc}
     data-cols={cols}
     data-rows={rows}
     data-autoplay={autoPlay ? 'true' : 'false'}
