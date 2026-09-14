@@ -13,10 +13,10 @@
   "email": "harishkannanjs@gmail.com",
   "postsPerPage": 10,
   "giscus": {
-    "enabled": false,
-    "repo": "",
-    "repoId": "",
+    "enabled": true,
+    "repo": "harishkannanjs/glyph.sh",
+    "repoId": "R_kgDOUZ1Pew",
     "category": "General",
-    "categoryId": ""
+    "categoryId": "DIC_kwDOUZ1Pe84DFjE4"
   }
 }
