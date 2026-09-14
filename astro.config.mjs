@@ -100,6 +100,26 @@ function profileDevMiddleware() {
         }
       };
 
+      registerApi('/api/get-profile', (req, res) => {
+        if (req.method === 'GET') {
+          try {
+            const profilePath = path.resolve(process.cwd(), 'profile.json');
+            let profileData = {};
+            if (fs.existsSync(profilePath)) {
+              profileData = JSON.parse(fs.readFileSync(profilePath, 'utf-8'));
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, profile: profileData }));
+          } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        } else {
+          res.writeHead(405, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+        }
+      });
+
       registerApi('/api/save-profile', (req, res) => {
         if (req.method === 'POST') {
           let body = '';
@@ -110,9 +130,19 @@ function profileDevMiddleware() {
             try {
               const data = JSON.parse(body);
               const profilePath = path.resolve(process.cwd(), 'profile.json');
-              fs.writeFileSync(profilePath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+              let existing = {};
+              if (fs.existsSync(profilePath)) {
+                try {
+                  existing = JSON.parse(fs.readFileSync(profilePath, 'utf-8'));
+                } catch {}
+              }
+              const merged = { ...existing, ...data };
+              if (data.giscus && existing.giscus) {
+                merged.giscus = { ...existing.giscus, ...data.giscus };
+              }
+              fs.writeFileSync(profilePath, JSON.stringify(merged, null, 2) + '\n', 'utf-8');
               res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ success: true, message: 'Saved to profile.json in repository!' }));
+              res.end(JSON.stringify({ success: true, message: 'Saved to profile.json in repository!', profile: merged }));
             } catch (err) {
               res.writeHead(500, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ error: err.message }));

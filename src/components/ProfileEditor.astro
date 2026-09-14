@@ -820,8 +820,17 @@ const currentProfile = {
       if (giscusCategoryIdInp) giscusCategoryIdInp.value = profile.giscus?.categoryId || '';
     }
 
-    function openEditorModal() {
+    async function openEditorModal() {
       if (!isDev) return;
+      try {
+        const res = await fetch('/api/get-profile');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.profile) {
+            profile = { ...profile, ...data.profile };
+          }
+        }
+      } catch {}
       populateForm();
       const modal = document.getElementById('profile-editor-modal');
       if (modal) {
@@ -902,13 +911,14 @@ const currentProfile = {
       const giscusCategoryId = form.querySelector('#prof-giscus-categoryid')?.value.trim() || '';
 
       const updated = {
+        ...profile,
         author: rawAuthor,
         handle,
         avatar: profile.avatar || '',
         logo: profile.logo || '',
         role,
         twitterHandle,
-        title: "glyph.sh",
+        title: profile.title || "glyph.sh",
         description,
         siteUrl,
         githubUrl,
@@ -924,21 +934,39 @@ const currentProfile = {
         },
       };
 
-      applyProfile(updated);
+      profile = { ...profile, ...updated };
+      applyProfile(profile);
+
+      const saveBtn = form.querySelector('button[type="submit"]');
+      if (saveBtn) saveBtn.disabled = true;
 
       try {
-        await fetch('/api/save-profile', {
+        const res = await fetch('/api/save-profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updated),
         });
-      } catch (err) {
-        console.warn('Auto-save to profile.json error:', err);
-      }
 
-      closeEditorModal();
-      showToast('✔ Saved to profile.json in repository!');
-      openExportModal();
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `HTTP ${res.status}`);
+        }
+
+        const resData = await res.json().catch(() => ({}));
+        if (resData.profile) {
+          profile = { ...profile, ...resData.profile };
+          applyProfile(profile);
+        }
+
+        closeEditorModal();
+        showToast('✔ Saved to profile.json in repository!');
+        openExportModal();
+      } catch (err) {
+        console.error('Auto-save to profile.json error:', err);
+        showToast('Failed to save to profile.json: ' + err.message, true);
+      } finally {
+        if (saveBtn) saveBtn.disabled = false;
+      }
     }
 
     async function uploadLogoFile(file) {
