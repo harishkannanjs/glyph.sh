@@ -1,311 +1,377 @@
-# Terminal Blog — Catppuccin Mocha Technical Research Platform
+# glyph.sh — Terminal Aesthetic Technical Publishing Platform
 
-> A production-ready, high-performance technical blog and research repository built with **Astro 5**, **Tailwind CSS v4**, **MDX**, and **Pagefind**, styled strictly under the **Catppuccin Mocha** terminal aesthetic.
-
----
-
-## 1. Aesthetic & Architecture
-
-- **Color Palette:** Authentic **Catppuccin Mocha** dark mode (`#1e1e2e` Base, `#181825` Mantle, `#11111b` Crust, `#a6e3a1` Green accents, `#cdd6f4` Text) with synchronized **Catppuccin Latte** light mode.
-- **Typography:** 100% self-hosted **JetBrains Mono** (`@fontsource/jetbrains-mono`, weights 400, 500, 700) across all UI chrome, headings, body text, and code blocks.
-- **Elevation:** Strict zero `box-shadow` (`box-shadow: none !important`); depth is established purely through tonal stepping and 1px hairline borders (`#45475a`).
-- **Interactive Terminal UI:** Blinking cursor pulse (`_`), terminal prompt prefixes (`> `, `$ `), and an authentic UNIX CLI command palette (`Ctrl+K` or `/`).
-- **Search & Unified Taxonomy:** Instant client-side fuzzy search and embedded tag exploration with zero external page transitions.
+> A production-ready, ultra-fast personal blog and technical research platform built with **Astro 5**, **Tailwind CSS v4**, **MDX**, and **Pagefind**, strictly styled under the **Catppuccin Mocha** terminal aesthetic.
 
 ---
 
-## 2. Directory Structure & Content Organization
+## Table of Contents
 
-Articles are managed from the root `/Blogs` directory without complex configuration:
-
-```
-├── Blogs/
-│   ├── series/
-│   │   └── <name_of_the_series>/
-│   │       ├── 01-first-part.mdx
-│   │       ├── 02-second-part.mdx
-│   │       └── ...
-│   └── standalone/
-│       ├── reverse-engineering-notes.md
-│       └── ...
-├── profile.json               <-- Single source of truth for author info & Giscus
-├── astro.config.mjs           <-- Astro & Shiki syntax configuration
-├── src/
-│   ├── components/            <-- CommandPalette, Header, Footer, GiscusComments, etc.
-│   ├── layouts/               <-- BaseLayout, BlogPostLayout
-│   ├── lib/                   <-- Dynamic blog loader & Satori OG generator
-│   ├── pages/                 <-- Index, about, profile, blog routes, RSS, feeds
-│   └── styles/
-│       └── global.css         <-- Catppuccin color variables & JetBrains Mono imports
-└── .github/
-    └── workflows/
-        └── deploy.yml         <-- Automated GitHub Pages build & deploy
-```
-
-### Series Articles (`Blogs/series/<series_name>/`)
-- Place multi-part deep dives inside a subdirectory under `Blogs/series/`.
-- File naming like `01-title.md` or `02-title.mdx` automatically extracts:
-  - The series slug and clean title.
-  - The part number (e.g. Part 1, Part 2).
-  - Sibling article count for the series progress strip.
-
-### Standalone Articles (`Blogs/standalone/`)
-- Place individual research notes, CTF write-ups, or tutorials directly inside `Blogs/standalone/`.
-- Accessible at `/blog/standalone/<slug>` and aliased to `/blog/<slug>`.
-
-### Article Frontmatter (Optional)
-Files can include YAML frontmatter, or rely on auto-inferred titles from filenames:
-
-```markdown
----
-title: "Kernel ALPC Race Condition & Exploitation"
-description: "In-depth analysis of Windows ALPC message ports and kernel race conditions."
-pubDate: 2026-03-15
-tags: ["kernel", "windows-internals", "reverse-engineering", "c"]
-draft: false
----
-```
+1. [Features & Design Philosophy](#1-features--design-philosophy)
+2. [Step 1: Local Setup (Zero to Running in 60s)](#step-1-local-setup-zero-to-running-in-60s)
+3. [Step 2: Customizing Your Profile & Branding](#step-2-customizing-your-profile--branding)
+4. [Step 3: Setting Up Giscus Comments (GitHub Discussions)](#step-3-setting-up-giscus-comments-github-discussions)
+5. [Step 4: Writing & Managing Articles](#step-4-writing--managing-articles)
+6. [Step 5: Deploying to GitHub Pages](#step-5-deploying-to-github-pages)
+7. [Step 6: Pushing Updates with One Click](#step-6-pushing-updates-with-one-click)
+8. [Comprehensive Troubleshooting & Remediation](#comprehensive-troubleshooting--remediation)
+9. [Project Architecture & File Tree](#project-architecture--file-tree)
 
 ---
 
-## 3. Quick Start (Local Development)
+## 1. Features & Design Philosophy
+
+- **Authentic Terminal Aesthetic**: Powered by **Catppuccin Mocha** (dark) and synchronized **Catppuccin Latte** (light) palettes. Depth is established through tonal stepping and 1px hairline borders (`#45475a`) with zero distracting drop-shadows.
+- **Typography**: 100% self-hosted **JetBrains Mono** across UI chrome, headings, body text, and code snippets.
+- **Lightning-Fast Client Search**: Instant search and tag exploration (`Ctrl+K` or `/`) backed by an offline-capable **Pagefind** static index.
+- **Interactive Markdown Components**:
+  - Code blocks with line highlighting, diffs (`+`/`-`), and 1-click copy buttons via **Shiki**.
+  - Interactive sequence and architecture diagrams with `<Mermaid />`.
+  - Terminal replays with `<Asciinema />`.
+  - LaTeX mathematical equations with **KaTeX** ($E = mc^2$).
+  - Collapsible spoilers, side notes, reading progress indicators, and estimated reading time.
+- **In-Browser Localhost Dashboard**:
+  - Edit your author identity, social links, and bio right in your browser at `http://localhost:4321/profile`.
+  - Drag-and-drop new articles with the built-in blog uploader.
+  - Push all local codebase changes directly to your GitHub repository with one click.
+- **Serverless Comments**: Built on **Giscus** and GitHub Discussions — zero databases, zero tracking, and spam-free.
+
+---
+
+## Step 1: Local Setup (Zero to Running in 60s)
 
 ### Prerequisites
-- [Bun](https://bun.sh) (v1.2+) or Node.js (v20+)
 
-### 1. Clone & Install
+You only need **one** of the following JavaScript runtimes installed on your machine:
+
+- **[Bun](https://bun.sh)** (recommended for blazing speed, v1.2+):
+  - **Windows (PowerShell)**: `powershell -c "irm bun.sh/install.ps1 | iex"`
+  - **macOS / Linux**: `curl -fsSL https://bun.sh/install | bash`
+- *or* **[Node.js](https://nodejs.org)** (v20+ with `npm` or `pnpm`).
+
+---
+
+### 1. Clone the Repository
+
 ```bash
-git clone https://github.com/<your-username>/blog.git
-cd blog
+git clone https://github.com/<your-username>/glyph.sh.git
+cd glyph.sh
+```
+
+### 2. Install Dependencies
+
+Using Bun:
+```bash
 bun install
 ```
+*(Or using npm: `npm install`)*
 
-### 2. Disable Astro Dev Toolbar (Recommended)
-To keep your terminal view clean and distraction-free, disable Astro's floating overlay toolbar:
-```bash
-bunx astro preferences disable devToolbar
-```
+### 3. Start the Development Server
 
-### 3. Start Development Server
 ```bash
 bun run dev
 ```
-Open [http://localhost:4321](http://localhost:4321) in your browser.
+*(Or using npm: `npm run dev`)*
 
-### 4. Build & Preview Production
-```bash
-# Type-check and validate all Astro/TypeScript files (0 errors, 0 warnings)
-bun run astro check
-
-# Compile static distribution and build Pagefind search indexes
-bun run build
-
-# Preview production build locally
-bun run preview
-```
+Open **[http://localhost:4321](http://localhost:4321)** in your web browser. You will see your terminal blog running locally with native Hot Module Replacement (HMR).
 
 ---
 
-## 4. Author Configuration (`profile.json`)
+### ⚠️ Common Errors & Remediation (Step 1)
 
-All identity and author details are stored directly in [`profile.json`](file:///X:/Develop/blog/profile.json) in the root of the repository:
+> **Problem: `Port 4321 is in use, trying another one...`**
+> - **Cause**: A previous terminal session or dev server is still running on port 4321.
+> - **Remediation**:
+>   - Astro will automatically fallback to `http://localhost:4322/`. You can view it there.
+>   - To free port 4321 on Windows: Open PowerShell and run `Stop-Process -Id (Get-NetTCPConnection -LocalPort 4321).OwningProcess -Force`.
+>   - On macOS/Linux: Run `kill -9 $(lsof -t -i:4321)`.
+
+> **Problem: `Scripts disabled on this system` (PowerShell on Windows)**
+> - **Cause**: Windows Execution Policy blocks unsigned scripts by default.
+> - **Remediation**: Run PowerShell as Administrator and execute `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`, then restart your terminal.
+
+---
+
+## Step 2: Customizing Your Profile & Branding
+
+All author details, site titles, social links, and comment configurations are stored in **[`profile.json`](profile.json)** at the root of the repository.
+
+You can customize your details in two ways:
+
+### Method A: Using the Localhost Dashboard (Recommended)
+
+1. Start your local server (`bun run dev`) and visit **[http://localhost:4321/profile](http://localhost:4321/profile)**.
+2. In the top dev toolbar, click **`$ edit-profile`** (or press the **`e`** key).
+3. Update your details in the modal:
+   - **Author Name**: Your name or handle.
+   - **Tagline / Role**: Your job title or technical focus.
+   - **Bio**: Short description for your profile.
+   - **GitHub / Twitter / Email**: Your contact coordinates.
+   - **Site URL**: Your planned live deployment URL (e.g. `https://username.github.io/glyph.sh` or `https://yourdomain.com`).
+4. Click **Save to profile.json**. Your changes are immediately written to disk and visible on the page.
+5. **Change Your Logo/Avatar**: Hover over the avatar image on the profile page and click **Upload Logo**. Pick your PNG or JPG file; it will be saved to `public/profile-logo.png` and update automatically.
+
+### Method B: Directly in `profile.json`
+
+Open `profile.json` in your favorite code editor and edit the fields:
 
 ```json
 {
-  "author": "Your Name",
-  "handle": "@yourusername",
-  "role": "Software Engineer",
-  "twitterHandle": "@yourusername",
-  "title": "Your Name // Terminal Blog",
-  "description": "Personal engineering notes, technical articles, and system projects.",
-  "siteUrl": "https://yourusername.github.io",
-  "githubUrl": "https://github.com/yourusername",
-  "twitterUrl": "https://x.com/yourusername",
-  "email": "you@example.com",
+  "author": "Alice Reed",
+  "handle": "@alicereed",
+  "avatar": "/profile-logo.png",
+  "logo": "/profile-logo.png",
+  "role": "Systems Engineer & Security Researcher",
+  "twitterHandle": "@alicereed",
+  "title": "glyph.sh",
+  "description": "Explorations into low-level systems, kernel development, and distributed consensus.",
+  "siteUrl": "https://alice.github.io/glyph.sh",
+  "githubUrl": "https://github.com/alice",
+  "twitterUrl": "https://x.com/alice",
+  "email": "alice@example.com",
   "postsPerPage": 10,
   "giscus": {
-    "enabled": true,
-    "repo": "yourusername/blog",
-    "repoId": "R_kgD...",
+    "enabled": false,
+    "repo": "",
+    "repoId": "",
     "category": "General",
-    "categoryId": "DIC_kwD..."
+    "categoryId": ""
   }
 }
 ```
 
-### Localhost Dev Mode (Profile & Comments Editing)
-To keep the website lightweight and eliminate complex external databases:
-- **In Local Development (`bun run dev`):** The `$ edit-profile` toolbar automatically appears on `http://localhost:4321/profile` (or press `e`). You can update your author name, role, bio, social links, logo, and Giscus comment settings directly. Saving exports your updated configuration straight to [`profile.json`](file:///X:/Develop/blog/profile.json).
-- **In Production (`github.io`):** The editing toolbar is **completely hidden**. Public visitors only see your clean, read-only author portfolio without any edit buttons or administrative interfaces.
-- **Git Push:** Whenever you edit [`profile.json`](file:///X:/Develop/blog/profile.json), run `git push` to publish your updates live to GitHub Pages.
-
 ---
 
-## 5. Setting Up Giscus (Discussions & Comments Powered by GitHub)
+## Step 3: Setting Up Giscus Comments (GitHub Discussions)
 
-Comments and peer review discussions are powered by **[Giscus](https://giscus.app)** — a modern, zero-server commenting system built on GitHub Discussions. Comments and reactions are stored directly and securely in your GitHub repository's **Discussions** tab, allowing visitors to comment using their GitHub accounts with full markdown, syntax highlighting, and emoji reactions.
+Comments are powered by **[Giscus](https://giscus.app)** — a modern commenting engine built on **GitHub Discussions**. No third-party accounts, no ads, and no external databases are required.
 
-### Prerequisites
-1. **Public Repository:** The repository hosting your discussions must be **Public** on GitHub (Giscus cannot access private repositories).
-2. **Discussions Enabled:** GitHub Discussions must be turned on in your repository settings.
-3. **Giscus GitHub App Authorized:** The Giscus app must be installed and granted access to your repository.
+Follow these 4 steps to configure comments:
 
----
+### 1. Ensure Your Repository is Public
+Giscus connects to GitHub Discussions via the public API. Your repository must be set to **Public** on GitHub. *(Private repositories cannot load Giscus comments without OAuth proxying).*
 
-### Step-by-Step Setup Guide
+### 2. Turn On GitHub Discussions
+1. Go to your repository on GitHub (`https://github.com/<your-username>/glyph.sh`).
+2. Click **Settings** (top navigation bar).
+3. Scroll down to the **Features** section.
+4. Check the box next to **Discussions**.
 
-#### Step 1: Enable GitHub Discussions
-1. Open your repository on GitHub.
-2. Click **Settings** (top navigation).
-3. Under the **General** tab, scroll down to the **Features** section.
-4. Check the box for **Discussions**.
-
-#### Step 2: Install and Authorize the Giscus GitHub App
-1. Go to the [Giscus GitHub App](https://github.com/apps/giscus).
-2. Click **Install** (or **Configure** if already installed).
-3. Under **Repository access**, select **Only select repositories** and pick your blog repository (e.g. `yourusername/blog`), or choose **All repositories**.
+### 3. Install the Giscus GitHub App
+1. Visit the **[Giscus GitHub App](https://github.com/apps/giscus)** page.
+2. Click **Install** (or **Configure** if already installed on your account).
+3. Under **Repository access**, select **Only select repositories** and choose your blog repository.
 4. Click **Install & Authorize**.
 
-#### Step 3: Obtain `repoId` and `categoryId` from Giscus
-1. Navigate to **[giscus.app](https://giscus.app)**.
-2. Under **Configuration** $\rightarrow$ **Repository**:
-   - Enter your repository in `owner/repo` format (e.g. `yourusername/blog`).
-   - Giscus will run automated checks confirming your repo is public, has Discussions enabled, and the app is installed.
-3. Under **Page ↔ Discussions Mapping**:
-   - Select **Discussion title contains page `pathname`** (this matches our blog's `data-mapping="pathname"` integration).
-4. Under **Discussion Category**:
-   - Select your preferred category from the dropdown (usually **General** or **Announcements**).
-5. Scroll down to the **Enable giscus** section showing the generated `<script>` tag.
-6. Copy the following two attributes:
-   - `data-repo-id` (e.g., `R_kgDON...`)
-   - `data-category-id` (e.g., `DIC_kwDON...`)
+### 4. Obtain Your Repository and Category IDs
+1. Open **[giscus.app](https://giscus.app)** in your browser.
+2. Under **Repository**, enter your repo as `username/repository-name` (e.g. `alice/glyph.sh`). Giscus will verify your repo in green.
+3. Under **Page ↔ Discussions Mapping**, leave the default selection (**Discussion title contains page `pathname`**).
+4. Under **Discussion Category**, select **General** (or **Announcements**).
+5. Scroll down to **Enable giscus**. In the generated snippet, look for these two attributes:
+   - `data-repo-id="..."` (e.g. `R_kgDOUZ...`)
+   - `data-category-id="..."` (e.g. `DIC_kwDOU...`)
+6. Copy both IDs.
 
----
-
-### Step 4: Configure the Blog
-
-You can configure Giscus using either of the following two methods:
-
-#### Method A: Via the `/profile` UI (Localhost Dev Mode)
-1. Start the dev server: `bun run dev`.
-2. Open [http://localhost:4321/profile](http://localhost:4321/profile) in your browser.
-3. Click **$ edit-profile** (or press the `e` shortcut key).
-4. Scroll to the **giscus.comments (GitHub Discussions)** section:
-   - **giscus.repo:** `yourusername/blog`
-   - **giscus.repoId:** `R_kgDON...`
-   - **giscus.category:** `General` (matches your chosen category name)
-   - **giscus.categoryId:** `DIC_kwDON...`
-5. Click **Save to profile.json**.
-
-#### Method B: Directly in `profile.json`
-Open [`profile.json`](file:///X:/Develop/blog/profile.json) in your project root and update the `giscus` object:
+### 5. Save to `profile.json`
+Update the `giscus` block in [`profile.json`](profile.json) (or in the `$ edit-profile` modal):
 
 ```json
-{
-  "giscus": {
-    "enabled": true,
-    "repo": "yourusername/blog",
-    "repoId": "R_kgDON...",
-    "category": "General",
-    "categoryId": "DIC_kwDON..."
-  }
+"giscus": {
+  "enabled": true,
+  "repo": "alice/glyph.sh",
+  "repoId": "R_kgDOUZ5NPw",
+  "category": "General",
+  "categoryId": "DIC_kwDOUZ5NP84DFjkr"
 }
 ```
 
 ---
 
-### Step 5: Verify & Deploy
-1. Open any blog post on `http://localhost:4321/blog/...`.
-2. Scroll to the bottom to the **Discussions & Peer Review** section.
-3. The Giscus comment interface will load automatically with Catppuccin Mocha theme (synchronized with light/dark theme toggles).
-4. Commit and push your changes to GitHub:
-   ```bash
-   git add profile.json README.md
-   git commit -m "feat: configure giscus discussions"
-   git push origin main
-   ```
+### ⚠️ Common Errors & Remediation (Step 3)
 
-### Troubleshooting
-- **"Discussion not found" or "Comments not loading":** Verify that the repository is **public**, the [Giscus App](https://github.com/apps/giscus) has repository access permissions, and your `repoId` and `categoryId` values strictly match the ones generated on [giscus.app](https://giscus.app).
-- **Fallback Card Appears:** If `enabled` is `false` or any required IDs (`repo`, `repoId`, `categoryId`) are blank, the blog displays a clean fallback card with a direct link to your GitHub Discussions tab so visitors can still engage without errors.
-
+> **Problem: "Discussion not found" or comments don't appear.**
+> - **Cause 1**: The repository is set to Private. (Must be Public).
+> - **Cause 2**: GitHub Discussions was not enabled in repo Settings.
+> - **Cause 3**: The Giscus app was not installed or granted access to this specific repository. Visit `https://github.com/apps/giscus` and ensure repository access is granted.
+> - **Cause 4**: Mismatched `repoId` or `categoryId`. Verify the strings match the output from `giscus.app`.
 
 ---
 
-## 6. Deployment to GitHub Pages (`github.io`)
+## Step 4: Writing & Managing Articles
 
-The repository includes a fully automated GitHub Actions deployment workflow at [`.github/workflows/deploy.yml`](file:///X:/Develop/blog/.github/workflows/deploy.yml) that builds the Astro site, compiles OpenGraph social cards, generates the Pagefind static search index, and publishes the static artifacts directly to GitHub Pages on every push to `master` (or `main`).
+Articles live in the root `/Blogs` directory. The custom dynamic content engine takes care of routing, table of contents, reading time calculation, and series progression automatically:
 
-### Step-by-Step GitHub Pages Setup
+```
+Blogs/
+├── series/                          <-- Multi-part serial write-ups
+│   └── kernel-exploitation/
+│       ├── 01-alpc-race-condition.md
+│       └── 02-token-stealing.mdx
+└── standalone/                      <-- Individual posts & notes
+    └── welcome-to-glyph.md
+```
 
-#### Step 1: Enable GitHub Pages via GitHub Actions (Required)
-By default, GitHub repositories look for a branch like `gh-pages`. You must switch GitHub Pages to use **GitHub Actions**:
-1. Open your repository on GitHub (e.g. `https://github.com/<your-username>/glyph.sh`).
-2. Click **Settings** (top navigation bar).
-3. In the left sidebar under **Code and automation**, click **Pages**.
-4. Under **Build and deployment** $\rightarrow$ **Source**:
-   - Change the dropdown from **Deploy from a branch** to **GitHub Actions**.
-   *(No branch selection is needed; GitHub Actions handles deployment automatically.)*
+### Writing a Standalone Post
 
-#### Step 2: Configure Your Site URL
-The blog automatically reads your site URL from [`profile.json`](file:///X:/Develop/blog/profile.json) (which [`astro.config.mjs`](file:///X:/Develop/blog/astro.config.mjs) ingests during build):
+Create a new file in `Blogs/standalone/my-new-post.md`:
 
-- **If using a Custom Domain (e.g. `glyph.sh`):**
-  1. In [`profile.json`](file:///X:/Develop/blog/profile.json), update `siteUrl`:
-     ```json
-     "siteUrl": "https://glyph.sh"
-     ```
-  2. In your GitHub repository $\rightarrow$ **Settings** $\rightarrow$ **Pages** $\rightarrow$ **Custom domain**:
-     - Enter your domain (e.g. `glyph.sh`) and click **Save**.
-     - Configure your DNS provider with GitHub's Pages IP addresses:
-       - `185.199.108.153`
-       - `185.199.109.153`
-       - `185.199.110.153`
-       - `185.199.111.153`
-     - Check **Enforce HTTPS** once the DNS check passes.
+```markdown
+---
+title: "Understanding Memory Safety in Modern Systems"
+description: "A comprehensive look at spatial and temporal memory safety primitives."
+pubDate: 2026-09-14
+tags: ["systems", "c", "rust", "security"]
+draft: false
+---
 
-- **If using the default GitHub Pages domain (`github.io`):**
-  In [`profile.json`](file:///X:/Develop/blog/profile.json), set:
+## Introduction
+
+Your article content goes here. You can use standard Markdown, code blocks, lists, and images.
+```
+
+### Writing a Multi-Part Series
+
+1. Create a folder inside `Blogs/series/` (e.g. `Blogs/series/reverse-engineering/`).
+2. Add your parts prefixed with a number:
+   - `01-introduction-and-tooling.md`
+   - `02-disassembling-binary.md`
+   - `03-hooking-apis.mdx`
+3. The blog automatically detects:
+   - The series name from the folder name.
+   - Part numbering and sibling counts (e.g. *Part 2 of 3*).
+   - Dynamic navigation strips connecting previous and next episodes.
+
+### Using the In-Browser Uploader
+
+If you prefer a graphical workflow:
+1. Open `http://localhost:4321/profile/`.
+2. Scroll to the **Publish New Article** section.
+3. Drag and drop your `.md` or `.mdx` file.
+4. Choose whether it is a **Standalone Article** or belongs to a **Series**.
+5. Click **Publish Article**. It will be saved into `Blogs/` immediately and appear in your article feed!
+
+---
+
+## Step 5: Deploying to GitHub Pages
+
+The repository includes a ready-to-use GitHub Actions deployment workflow in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
+
+Follow these steps once to configure automated deployment:
+
+### 1. Set GitHub Pages Source to "GitHub Actions"
+1. Open your repository on GitHub.
+2. Go to **Settings** $\rightarrow$ **Pages** (in the left sidebar).
+3. Under **Build and deployment** $\rightarrow$ **Source**, change the dropdown from **Deploy from a branch** to **GitHub Actions**.
+
+> [!IMPORTANT]
+> **Do NOT select "Deploy from a branch".** The site is built dynamically using Astro and Pagefind through GitHub Actions.
+
+### 2. Verify Workflow Permissions
+1. In your GitHub repository, navigate to **Settings** $\rightarrow$ **Actions** $\rightarrow$ **General**.
+2. Scroll to the bottom to **Workflow permissions**.
+3. Select **Read and write permissions** and click **Save**.
+
+### 3. Configure Your `siteUrl` in `profile.json`
+- **If deploying to `<username>.github.io/<repo>`** (default project page):
+  ```json
+  "siteUrl": "https://<your-username>.github.io/glyph.sh"
+  ```
+- **If deploying to `<username>.github.io`** (user page, repository named `<username>.github.io`):
   ```json
   "siteUrl": "https://<your-username>.github.io"
   ```
-
-#### Step 3: Check Workflow Permissions
-1. In your GitHub repository, go to **Settings** $\rightarrow$ **Actions** $\rightarrow$ **General**.
-2. Scroll to **Workflow permissions** at the bottom.
-3. Ensure **Read and write permissions** is selected, or verify that the workflow permissions in [`.github/workflows/deploy.yml`](file:///X:/Develop/blog/.github/workflows/deploy.yml) (`pages: write`, `id-token: write`) are enabled.
-
-#### Step 4: Push to Deploy
-Push your code to the `master` (or `main`) branch:
-```bash
-git add .
-git commit -m "feat: configure github pages deployment"
-git push origin master
-```
-
-The automated GitHub Action will:
-1. Check out the repository.
-2. Set up the Bun runtime environment.
-3. Install dependencies via `bun install --frozen-lockfile`.
-4. Validate types and frontmatter with `bun run astro check`.
-5. Compile static HTML and generate dynamic OpenGraph preview cards via `bun run build:astro`.
-6. Index all blog content for client-side search via `bun run pagefind`.
-7. Upload and deploy the production static artifacts to GitHub Pages.
-
-#### Step 5: Monitor Deployment & View Your Site
-1. Open the **Actions** tab in your GitHub repository.
-2. Click on the latest workflow run titled **Deploy Terminal Blog to GitHub Pages**.
-3. Once both the **build** and **deploy** jobs turn green, your live site URL will be displayed in the deployment summary.
-
+- **If using a custom domain** (e.g. `https://myblog.com`):
+  ```json
+  "siteUrl": "https://myblog.com"
+  ```
 
 ---
 
-## 7. Features & Interactive Tools
+## Step 6: Pushing Updates with One Click
 
-- **Unified Search & Tag Explorer (`Ctrl+K` or `/`):** Fast in-memory and Pagefind search with a bottom tag taxonomy explorer. Filter write-ups by clicking any tag pill or typing `#tag`.
-- **Sticky Scroll-Synced TOC:** Automatically follows reading progress with active heading indicators.
-- **Code Highlighting (Shiki):** Pre-configured with Catppuccin Mocha (dark) and Catppuccin Latte (light) with 1-click copy buttons and line diff markers (`+`/`-`).
-- **Diagrams (`<Mermaid>`):** Dynamic architecture, sequence, and exploit chain diagrams styled in Catppuccin Mocha tokens.
-- **Terminal Replays (`<Asciinema>`):** Interactive terminal recording player for shell demonstrations.
-- **Mathematics (KaTeX):** Full LaTeX math equations supported via `remark-math` and `rehype-katex`.
-- **Dynamic OpenGraph Images:** High-resolution 1200x630 social preview cards generated dynamically per write-up at compile time via Satori.
+Whenever you write articles or update your profile, you can push changes to GitHub in two ways:
+
+### Method A: One-Click Push in Localhost (Easiest)
+
+1. Open `http://localhost:4321/profile/`.
+2. In the top dev toolbar, click **`↑ push to github`** (at the right side of `profile.json`).
+3. An interactive modal will show:
+   - Your remote repository and active branch (`master` or `main`).
+   - A list of pending local changes ready to be committed.
+   - An optional commit message field (leave blank for default).
+4. Click **Push to GitHub**.
+5. The console will execute `git add -A`, commit, and push directly to GitHub.
+6. A green confirmation badge with your new commit hash will appear, and GitHub Actions will automatically start building and deploying your update!
+
+### Method B: Terminal Command
+
+Run in your terminal:
+```bash
+git add -A
+git commit --allow-empty-message -m "Update site content"
+git push origin master
+```
+
+---
+
+## Comprehensive Troubleshooting & Remediation
+
+| Issue | Cause | Proven Solution |
+| :--- | :--- | :--- |
+| **GitHub Action fails at `actions/jekyll-build-pages`** | GitHub Pages is set to "Deploy from a branch", causing GitHub to try building your Astro site as a legacy Jekyll site. | Go to your GitHub repository $\rightarrow$ **Settings** $\rightarrow$ **Pages** $\rightarrow$ change **Source** to **GitHub Actions**. |
+| **Site looks unstyled or CSS/JS gives 404 on GitHub Pages** | `siteUrl` in `profile.json` does not include the repository subpath. | If your repository is `https://github.com/alice/glyph.sh`, set `"siteUrl": "https://alice.github.io/glyph.sh"` in `profile.json`. |
+| **Workflow fails with `Permission denied to github-actions[bot]`** | Repository Actions permissions do not permit deployments. | In repository **Settings** $\rightarrow$ **Actions** $\rightarrow$ **General** $\rightarrow$ set **Workflow permissions** to **Read and write permissions**. |
+| **`bun run dev` shows broken styles on localhost** | An outdated server was running with a subpath base in memory. | Stop all dev processes and start fresh with `bun run dev`. In development, Astro serves from root (`/`) natively with Vite HMR. |
+| **Git Push fails with `Permission denied (publickey)` or asks for credentials** | Git on your local machine requires authentication credentials. | Create a GitHub Personal Access Token (classic) with `repo` scope at `github.com/settings/tokens`, or configure your SSH key: `ssh-keygen -t ed25519`. |
+| **Avatar or logo image is broken / returns 404** | Image file is missing from `public/` or path is relative. | Ensure your image is located in `public/profile-logo.png` and referenced in `profile.json` with a leading slash: `"avatar": "/profile-logo.png"`. |
+| **Typecheck errors during `bun run build`** | Article frontmatter is missing required fields like `title`, `description`, or `pubDate`. | Run `bun run astro check` locally to see exact file line numbers and missing fields. |
+
+---
+
+## Project Architecture & File Tree
+
+```
+glyph.sh/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml            <-- Automated GitHub Pages build & deploy
+├── Blogs/
+│   ├── series/                   <-- Multi-part series subdirectories
+│   └── standalone/               <-- Individual technical articles
+├── public/
+│   ├── .nojekyll                 <-- Prevents GitHub Pages Jekyll interference
+│   ├── favicon.ico               <-- Tab icon
+│   ├── favicon.png               <-- High-res tab icon
+│   └── profile-logo.png          <-- Brand & author profile logo
+├── src/
+│   ├── components/
+│   │   ├── BlogUploader.astro    <-- Drag-and-drop localhost article publisher
+│   │   ├── CommandPalette.astro  <-- Ctrl+K search & tag explorer
+│   │   ├── GiscusComments.astro  <-- GitHub Discussions comments component
+│   │   ├── Header.astro          <-- Top navigation & theme toggle
+│   │   ├── ProfileEditor.astro   <-- Localhost profile & 1-click git push modal
+│   │   └── ...
+│   ├── layouts/
+│   │   ├── BaseLayout.astro      <-- Main HTML wrapper, SEO & OpenGraph tags
+│   │   └── BlogPostLayout.astro  <-- Article layout with TOC & reading time
+│   ├── lib/
+│   │   ├── blog-loader.ts        <-- Astro 5 dynamic Content Layer loader
+│   │   └── og-image.ts           <-- Satori OpenGraph image generator
+│   ├── pages/
+│   │   ├── index.astro           <-- Home feed
+│   │   ├── profile.astro         <-- Author profile page & dashboard
+│   │   ├── feed.xml.ts           <-- RSS 2.0 XML feed
+│   │   └── blog/[...slug].astro  <-- Dynamic article route handler
+│   └── styles/
+│       └── global.css            <-- Catppuccin color scheme & JetBrains Mono
+├── astro.config.mjs              <-- Vite middlewares & build configuration
+├── package.json                  <-- Scripts & dependencies
+├── profile.json                  <-- Single source of truth for user config
+└── tsconfig.json                 <-- TypeScript path aliases & strict checks
+```
+
+---
+
+## License
+
+MIT License. Feel free to use this template for your personal blog, research notes, engineering documentation, or portfolio.

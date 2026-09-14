@@ -14,7 +14,7 @@ import { slug as githubSlug } from 'github-slugger';
 
 const exec = promisify(execCb);
 
-let site = 'https://harishkannanjs.github.io';
+let site = 'https://example.github.io';
 let productionBase = '/glyph.sh';
 
 try {

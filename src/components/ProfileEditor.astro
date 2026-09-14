@@ -526,7 +526,7 @@ const currentProfile = {
     <div class="flex items-center justify-between gap-2 px-4 py-3 bg-surface-container border-t border-outline-variant">
       <a
         id="git-view-repo-link"
-        href="https://github.com/harishkannanjs/glyph.sh"
+        href={currentProfile.githubUrl || siteConfig.githubUrl || 'https://github.com'}
         target="_blank"
         rel="noopener noreferrer"
         class="text-[11px] text-primary hover:underline flex items-center gap-1 hidden sm:flex"

@@ -1,22 +1,22 @@
 {
-  "author": "Harish",
-  "handle": "@harishkannanjs",
-  "avatar": "/profile-logo.jpg",
-  "logo": "/profile-logo.jpg",
-  "role": "",
-  "twitterHandle": "",
+  "author": "Your Name",
+  "handle": "@yourhandle",
+  "avatar": "/profile-logo.png",
+  "logo": "/profile-logo.png",
+  "role": "Security Researcher & Systems Developer",
+  "twitterHandle": "@yourhandle",
   "title": "glyph.sh",
-  "description": "",
-  "siteUrl": "https://harishkannanjs.github.io/glyph.sh",
-  "githubUrl": "",
-  "twitterUrl": "",
-  "email": "",
+  "description": "A terminal-inspired technical blog and research platform.",
+  "siteUrl": "https://username.github.io/glyph.sh",
+  "githubUrl": "https://github.com/username",
+  "twitterUrl": "https://x.com/username",
+  "email": "your-email@example.com",
   "postsPerPage": 10,
   "giscus": {
-    "enabled": true,
-    "repo": "harishkannanjs/glyph.sh",
-    "repoId": "R_kgDOUZ5NPw",
+    "enabled": false,
+    "repo": "",
+    "repoId": "",
     "category": "General",
-    "categoryId": "DIC_kwDOUZ5NP84DFjkr"
+    "categoryId": ""
   }
 }

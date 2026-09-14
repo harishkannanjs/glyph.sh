@@ -1,4 +1,4 @@
-name: Deploy Terminal Blog to GitHub Pages
+name: Deploy glyph.sh to GitHub Pages
 
 on:
   push:
