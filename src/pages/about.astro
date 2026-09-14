@@ -1,4 +1,17 @@
 ---
-// Redirect legacy /about route to primary /profile/ route
-return Astro.redirect('/profile/', 301);
+import { getRelativePath } from '@/site.config';
+const profileUrl = getRelativePath('/profile/');
 ---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="refresh" content={`0;url=${profileUrl}`} />
+    <link rel="canonical" href={profileUrl} />
+    <title>Redirecting to Profile...</title>
+  </head>
+  <body>
+    <p>Redirecting to <a href={profileUrl}>Profile</a>...</p>
+  </body>
+</html>
+

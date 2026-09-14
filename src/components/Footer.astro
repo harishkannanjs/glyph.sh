@@ -1,5 +1,5 @@
 ---
-import { siteConfig } from '@/site.config';
+import { siteConfig, getRelativePath } from '@/site.config';
 const currentYear = new Date().getFullYear();
 ---
 
@@ -52,7 +52,7 @@ const currentYear = new Date().getFullYear();
       )}
       {(siteConfig.githubUrl || siteConfig.twitterUrl || siteConfig.email) && <span class="text-outline">·</span>}
       <a
-        href="/feed.xml"
+        href={getRelativePath('/feed.xml')}
         class="hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1 text-primary"
       >
         <span>RSS</span>

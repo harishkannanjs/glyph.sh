@@ -1,6 +1,6 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { siteConfig } from '@/site.config';
+import { siteConfig, getRelativePath } from '@/site.config';
 ---
 
 <BaseLayout title="404: Not Found">
@@ -8,51 +8,48 @@ import { siteConfig } from '@/site.config';
     <section class="flex flex-col space-y-4">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <span class="w-1.5 h-1.5 bg-error"></span>
-          <span class="text-[11px] text-outline uppercase tracking-wider">
-            System State Preview // Exception Handler
-          </span>
+          <span class="text-primary font-bold">&gt;</span>
+          <span class="text-primary text-[13px] uppercase tracking-wider font-semibold">status: 404_buffer_unallocated</span>
         </div>
-        <span class="text-error text-[11px] font-bold">SIG_ERR: 404</span>
+        <span class="text-outline text-[11px]">[ERR_NOT_FOUND]</span>
       </div>
 
-      <!-- Authentic UNIX Terminal Box -->
-      <div class="w-full bg-surface-container-lowest border border-outline-variant flex flex-col shadow-none">
-        <!-- Terminal Window Bar -->
-        <div class="bg-surface-container px-3 py-1.5 border-b border-outline-variant flex items-center justify-between text-[11px] text-outline select-none">
-          <div class="flex items-center gap-2">
-            <span class="w-2 h-2 bg-error"></span>
-            <span class="w-2 h-2 bg-outline"></span>
-            <span class="w-2 h-2 bg-outline-variant"></span>
-            <span class="ml-2 text-on-surface-variant font-mono">bash - pts/0 (err_trap)</span>
+      <!-- Terminal Output Frame -->
+      <div class="border border-outline-variant rounded-[2px] p-6 bg-surface-container-low space-y-6">
+        <div class="space-y-2 border-b border-outline-variant/60 pb-4">
+          <div class="text-[28px] text-error font-bold tracking-tight flex items-center gap-3">
+            <span>404</span>
+            <span class="text-outline font-normal text-[20px]">/</span>
+            <span class="text-on-surface text-[18px] font-medium">Page Buffer Missing</span>
           </div>
-          <div class="text-[10px] text-outline font-mono">buffer: 13 lines</div>
+          <p class="text-on-surface-variant text-[13px] leading-relaxed">
+            The requested memory address or route does not point to an active research note, standalone writeup, or series part.
+          </p>
         </div>
 
-        <!-- Terminal Body Content -->
-        <div class="p-4 space-y-3 font-mono leading-relaxed bg-surface-container-lowest text-on-surface text-[13px]">
-          <div class="flex items-center gap-2">
-            <span class="text-primary font-bold">{siteConfig.handle ? siteConfig.handle.replace(/^@/, '') : 'user'}@terminal:~$</span>
-            <span class="text-on-surface">cat requested-page.md</span>
+        <!-- Terminal Diagnostic Code Block -->
+        <div class="bg-surface-container-lowest border border-outline-variant p-4 text-[12px] space-y-1.5 overflow-x-auto select-all">
+          <div class="text-outline flex items-center gap-2">
+            <span class="text-primary">$</span>
+            <span>diagnose --strict --target=current_url</span>
           </div>
+          <div class="text-on-surface pl-3 border-l-2 border-outline-variant/50 space-y-1 py-1">
+            <p>[*] Probing local route cache... <span class="text-error font-semibold">FAILED</span></p>
+            <p>[*] Status: HTTP 404 Object Not Found in Blogs/ directory.</p>
+            <p>[*] Hint: Verify casing or utilize client fuzzy search (Ctrl+K or /).</p>
+          </div>
+        </div>
 
-          <div class="text-error flex items-start gap-2 pl-2">
-            <span class="text-outline select-none">&gt;</span>
-            <span>cat: requested-page.md: No such file or directory</span>
+        <div class="space-y-3 pt-1">
+          <div class="text-[12px] text-outline flex items-center gap-2">
+            <span class="text-primary">&gt;</span>
+            <span class="text-on-surface font-semibold">Possible causes:</span>
           </div>
-
-          <div class="text-on-surface-variant flex items-start gap-2 pl-2 border-l border-outline-variant/50 ml-2 mt-1 text-[12px]">
-            <span class="text-outline">status:</span>
-            <span class="text-error font-semibold">404_NOT_FOUND</span>
-            <span class="text-outline">| code: ENOENT | errno: 2</span>
-          </div>
-
-          <!-- System diagnostic dump snippet -->
-          <div class="py-2 text-outline text-[11px] pl-2 select-none space-y-0.5">
-            <div>[debug_trap] frame.pointer: 0x7fff8921df00</div>
-            <div>[debug_trap] target_inode: nil</div>
-            <div>[debug_trap] routing: /dev/null &lt;- request</div>
-          </div>
+          <ul class="list-disc list-inside text-[12px] text-on-surface-variant space-y-1 pl-2">
+            <li>Article is marked as <code class="text-primary">draft: true</code> in frontmatter (hidden in production).</li>
+            <li>File was relocated, renamed, or series part directory was restructured.</li>
+            <li>URL typo or outdated search bookmark.</li>
+          </ul>
 
           <!-- Prompt recovery line with action prompts -->
           <div class="pt-2 border-t border-outline-variant/60 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-[13px]">
@@ -63,7 +60,7 @@ import { siteConfig } from '@/site.config';
             <div class="flex flex-wrap items-center gap-3">
               <a
                 class="inline-flex items-center gap-1 bg-surface-container hover:bg-surface-container-high border border-outline-variant hover:border-primary text-on-surface hover:text-primary px-2.5 py-0.5 transition-colors"
-                href="/"
+                href={getRelativePath('/')}
               >
                 <span>[Home]</span>
               </a>

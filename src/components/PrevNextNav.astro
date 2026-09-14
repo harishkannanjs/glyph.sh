@@ -1,5 +1,6 @@
 ---
 import type { CollectionEntry } from 'astro:content';
+import { getRelativePath } from '@/site.config';
 
 interface Props {
   prevPost?: CollectionEntry<'blog'> | null;
@@ -14,7 +15,7 @@ const { prevPost, nextPost } = Astro.props;
     <!-- Previous Post -->
     {prevPost ? (
       <a
-        href={`/blog/${prevPost.id.replace(/\.(md|mdx)$/, '')}`}
+        href={getRelativePath(`/blog/${prevPost.id.replace(/\.(md|mdx)$/, '')}`)}
         class="min-w-0 overflow-hidden group p-3 bg-surface-container-low border border-outline-variant hover:border-primary rounded-[2px] transition-colors flex flex-col justify-between"
       >
         <div class="flex items-center gap-1 text-[11px] text-outline group-hover:text-primary transition-colors shrink-0">
@@ -32,7 +33,7 @@ const { prevPost, nextPost } = Astro.props;
     <!-- Next Post -->
     {nextPost ? (
       <a
-        href={`/blog/${nextPost.id.replace(/\.(md|mdx)$/, '')}`}
+        href={getRelativePath(`/blog/${nextPost.id.replace(/\.(md|mdx)$/, '')}`)}
         class="min-w-0 overflow-hidden group p-3 bg-surface-container-low border border-outline-variant hover:border-primary rounded-[2px] transition-colors flex flex-col justify-between sm:text-right"
       >
         <div class="flex items-center justify-end gap-1 text-[11px] text-outline group-hover:text-primary transition-colors shrink-0">

@@ -1,5 +1,6 @@
 ---
 import type { CollectionEntry } from 'astro:content';
+import { getRelativePath } from '@/site.config';
 
 interface Props {
   currentPost: CollectionEntry<'blog'>;
@@ -37,7 +38,7 @@ const relatedPosts = allPosts
         const filename = post.id.split('/').pop()?.replace(/\.(md|mdx)$/, '') + '.md';
         return (
           <a
-            href={`/blog/${slug}`}
+            href={getRelativePath(`/blog/${slug}`)}
             class="min-w-0 overflow-hidden p-3 bg-surface-container-low border border-outline-variant hover:border-primary rounded-[2px] transition-colors flex flex-col justify-between group"
           >
             <div class="min-w-0 w-full">

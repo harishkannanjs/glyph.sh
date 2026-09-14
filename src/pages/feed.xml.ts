@@ -1,7 +1,7 @@
 import rss from '@astrojs/rss';
 import type { APIContext } from 'astro';
 import { getCollection } from 'astro:content';
-import { siteConfig } from '@/site.config';
+import { siteConfig, getRelativePath } from '@/site.config';
 
 export async function GET(context: APIContext) {
   const posts = await getCollection('blog', ({ data }) => !data.draft);
@@ -15,7 +15,7 @@ export async function GET(context: APIContext) {
       title: post.data.title,
       pubDate: post.data.pubDate,
       description: post.data.description,
-      link: `/blog/${post.id.replace(/\.(md|mdx)$/, '')}/`,
+      link: getRelativePath(`/blog/${post.id.replace(/\.(md|mdx)$/, '')}/`),
       categories: post.data.tags,
     })),
     customData: `<language>en-us</language>`,

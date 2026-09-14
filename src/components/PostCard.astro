@@ -1,6 +1,7 @@
 ---
 import type { CollectionEntry } from 'astro:content';
 import { getReadingTime } from '@/lib/reading-time';
+import { getRelativePath } from '@/site.config';
 import TagBadge from './TagBadge.astro';
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 
 const { post, showDivider = true } = Astro.props;
 const slug = post.id.replace(/\.(md|mdx)$/, '');
+const postUrl = getRelativePath(`/blog/${slug}`);
 const reading = getReadingTime(post.body || '');
 
 const pubDateStr = new Date(post.data.pubDate).toISOString().split('T')[0];
@@ -44,7 +46,7 @@ const catCommand = `cat ${pubDateStr}-${slug}.md`;
   </div>
 
   <!-- Title Link with View Transition -->
-  <a class="block group-hover:text-primary transition-colors text-on-surface mb-2" href={`/blog/${slug}`}>
+  <a class="block group-hover:text-primary transition-colors text-on-surface mb-2" href={postUrl}>
     <h2
       class="text-[20px] font-semibold tracking-tight leading-snug font-mono break-words"
       transition:name={`post-title-${slug}`}
@@ -62,7 +64,7 @@ const catCommand = `cat ${pubDateStr}-${slug}.md`;
   <div class="flex items-center gap-4 text-[12px] font-mono">
     <a
       class="inline-flex items-center gap-1 text-primary hover:underline underline-offset-4"
-      href={`/blog/${slug}`}
+      href={postUrl}
     >
       <span>read post</span>
       <span class="font-bold transition-transform group-hover:translate-x-0.5">→</span>

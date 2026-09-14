@@ -705,7 +705,9 @@ function profileDevMiddleware() {
   };
 }
 
-let siteUrl = 'https://example.com';
+let site = 'https://harishkannanjs.github.io';
+let base = '/glyph.sh';
+
 try {
   const profileRaw = fs.readFileSync(path.resolve(process.cwd(), 'profile.json'), 'utf-8');
   const profileData = JSON.parse(profileRaw);
@@ -714,14 +716,20 @@ try {
     if (!/^https?:\/\//i.test(raw)) {
       raw = `https://${raw}`;
     }
-    new URL(raw);
-    siteUrl = raw;
+    const parsed = new URL(raw);
+    site = parsed.origin;
+    if (parsed.pathname && parsed.pathname !== '/') {
+      base = parsed.pathname.replace(/\/+$/, '');
+    } else {
+      base = undefined;
+    }
   }
 } catch {}
 
 // https://astro.build/config
 export default defineConfig({
-  site: siteUrl,
+  site: site,
+  base: base,
   output: 'static',
   devToolbar: {
     enabled: false,

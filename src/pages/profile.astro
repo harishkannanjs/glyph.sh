@@ -5,7 +5,7 @@ import PostCard from '@/components/PostCard.astro';
 import TagBadge from '@/components/TagBadge.astro';
 import ProfileEditor from '@/components/ProfileEditor.astro';
 import BlogUploader from '@/components/BlogUploader.astro';
-import { siteConfig } from '@/site.config';
+import { siteConfig, getRelativePath } from '@/site.config';
 import { getReadingTime } from '@/lib/reading-time';
 
 // Strictly fetch all published posts from repository, identical to index.astro
@@ -68,7 +68,7 @@ const authorTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1] || a[0].
           >
             <img
               id="profile-avatar-img"
-              src={siteConfig.avatar || siteConfig.logo || ''}
+              src={siteConfig.avatar || siteConfig.logo ? getRelativePath(siteConfig.avatar || siteConfig.logo) : ''}
               alt={`${siteConfig.author} Logo`}
               class={`w-full h-full object-cover ${siteConfig.avatar || siteConfig.logo ? '' : 'hidden'}`}
               data-profile-logo-img
@@ -149,7 +149,7 @@ const authorTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1] || a[0].
             </a>
             {(siteConfig.githubUrl || siteConfig.twitterUrl || siteConfig.email) && <span class="text-outline">·</span>}
             <a
-              href="/feed.xml"
+              href={getRelativePath('/feed.xml')}
               class="text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1 font-medium"
             >
               <span>RSS Feed</span>
@@ -207,7 +207,7 @@ const authorTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1] || a[0].
                       const totalPart = p.data.seriesTotal || data.total;
                       return (
                         <a
-                          href={`/blog/${slug}`}
+                          href={getRelativePath(`/blog/${slug}`)}
                           class="px-2 py-1 bg-surface-container border border-outline-variant hover:border-primary text-on-surface-variant hover:text-primary text-[11px] rounded-[2px] transition-colors flex items-center gap-1.5"
                         >
                           <span class="text-primary font-bold">[{p.data.seriesPart}{totalPart ? `/${totalPart}` : ''}]</span>

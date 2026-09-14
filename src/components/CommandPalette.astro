@@ -1,6 +1,6 @@
 ---
 import { getCollection } from 'astro:content';
-import { siteConfig } from '@/site.config';
+import { siteConfig, getRelativePath } from '@/site.config';
 
 const posts = await getCollection('blog', ({ data }) => !data.draft);
 const searchData = posts.map((post) => ({
@@ -9,7 +9,7 @@ const searchData = posts.map((post) => ({
   description: post.data.description,
   pubDate: new Date(post.data.pubDate).toISOString().split('T')[0],
   tags: post.data.tags || [],
-  url: `/blog/${post.id.replace(/\.(md|mdx)$/, '')}`,
+  url: getRelativePath(`/blog/${post.id.replace(/\.(md|mdx)$/, '')}`),
 }));
 
 // Aggregate unique tags with counts (replaces /tags page)
@@ -117,7 +117,7 @@ const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1] || a[0].
   </div>
 </div>
 
-<script is:inline define:vars={{ initialPosts: searchData }}>
+<script is:inline define:vars={{ initialPosts: searchData, pagefindUrl: getRelativePath('/pagefind/pagefind.js') }}>
   (function () {
     let activeIndex = -1;
     let filteredItems = [];
@@ -127,7 +127,8 @@ const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1] || a[0].
     // Load pagefind if available
     async function loadPagefind() {
       try {
-        pagefind = await import('/pagefind/pagefind.js');
+        const targetUrl = window['pagefindUrl'] || '/glyph.sh/pagefind/pagefind.js';
+        pagefind = await import(/* @vite-ignore */ targetUrl);
         await pagefind.init();
       } catch (e) {
         // Fallback to in-memory initialPosts in dev mode or before pagefind index build

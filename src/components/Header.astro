@@ -1,6 +1,6 @@
 ---
 import ThemeToggle from './ThemeToggle.astro';
-import { siteConfig } from '@/site.config';
+import { siteConfig, getRelativePath } from '@/site.config';
 
 interface Props {
   activePath?: string;
@@ -9,13 +9,17 @@ interface Props {
 const { activePath = '/' } = Astro.props;
 
 const navLinks: { href: string; label: string }[] = [];
+const homeUrl = getRelativePath('/');
+const profileUrl = getRelativePath('/profile/');
+const isProfileActive = activePath === '/profile' || activePath === '/profile/' || activePath === profileUrl || activePath.startsWith(profileUrl);
+const avatarSrc = siteConfig.avatar || siteConfig.logo ? getRelativePath(siteConfig.avatar || siteConfig.logo) : '';
 ---
 
 <header class="fixed top-0 left-0 right-0 z-40 bg-surface/90 backdrop-blur-md border-b border-outline-variant transition-colors">
   <div class="h-14 max-w-[1040px] mx-auto px-4 md:px-8 flex items-center justify-between">
     <!-- Left: Brand & Nav -->
     <div class="flex items-center gap-6 md:gap-8">
-      <a href="/" class="flex items-center gap-0.5 font-mono text-[14px] hover:opacity-90 transition-opacity">
+      <a href={homeUrl} class="flex items-center gap-0.5 font-mono text-[14px] hover:opacity-90 transition-opacity">
         <span class="text-primary font-bold">&gt;</span>
         <span class="text-on-surface font-semibold tracking-tight" data-author-brand>{siteConfig.name}</span>
       </a>
@@ -57,9 +61,9 @@ const navLinks: { href: string; label: string }[] = [];
       <ThemeToggle />
 
       <a
-        href="/profile/"
+        href={profileUrl}
         class={`flex items-center justify-center w-7 h-7 rounded-[2px] transition-colors border overflow-hidden ${
-          activePath === '/profile' || activePath === '/profile/'
+          isProfileActive
             ? 'border-primary text-primary bg-surface-container-high'
             : 'bg-surface-container border-outline-variant hover:border-primary text-on-surface-variant hover:text-primary'
         }`}
@@ -67,9 +71,9 @@ const navLinks: { href: string; label: string }[] = [];
         aria-label="Profile"
       >
         <img
-          src={siteConfig.avatar || siteConfig.logo || ''}
+          src={avatarSrc}
           alt={siteConfig.githubUsername}
-          class={`w-full h-full object-cover ${siteConfig.avatar || siteConfig.logo ? '' : 'hidden'}`}
+          class={`w-full h-full object-cover ${avatarSrc ? '' : 'hidden'}`}
           data-header-avatar
         />
         <svg

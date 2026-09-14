@@ -64,3 +64,19 @@ export const siteConfig: SiteConfig = {
     categoryId: "",
   },
 };
+
+/**
+ * Safely resolves an internal route or asset path respecting Astro's base URL.
+ * Handles both root deployments ('/') and GitHub Pages subpaths (e.g. '/glyph.sh/').
+ */
+export function getRelativePath(path: string = '/'): string {
+  if (!path) return '';
+  if (/^(?:[a-z]+:)?\/\//i.test(path) || path.startsWith('mailto:') || path.startsWith('tel:') || path.startsWith('#')) {
+    return path;
+  }
+  const base = (import.meta.env?.BASE_URL || '/').replace(/\/+$/, '');
+  const clean = path.replace(/^\/+/, '');
+  if (!clean) return base ? `${base}/` : '/';
+  return base ? `${base}/${clean}` : `/${clean}`;
+}
+

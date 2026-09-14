@@ -17,6 +17,7 @@ import GiscusComments from '@/components/GiscusComments.astro';
 import CodeBlockEnhancer from '@/components/CodeBlockEnhancer.astro';
 import { getReadingTime } from '@/lib/reading-time';
 import { getSeriesInfo } from '@/lib/series';
+import { getRelativePath } from '@/site.config';
 
 interface Props {
   post: CollectionEntry<'blog'>;
@@ -39,12 +40,13 @@ const updatedDateStr = post.data.updatedDate
 // Repository directory segments for breadcrumb
 const normalizedId = post.id.replace(/\\/g, '/');
 const dirSegments = normalizedId.split('/');
+const rootUrl = getRelativePath('/');
 ---
 
 <BaseLayout
   title={post.data.title}
   description={post.data.description}
-  image={`/og/${slug}.png`}
+  image={getRelativePath(`/og/${slug}.png`)}
   article={true}
   pubDate={post.data.pubDate}
   activePath="/blog"
@@ -55,9 +57,9 @@ const dirSegments = normalizedId.split('/');
     <!-- Directory of the blog -->
     <div class="flex items-center gap-1.5 text-[11px] text-outline mb-4 font-mono overflow-x-auto whitespace-nowrap">
       <span class="text-primary font-bold">&gt;</span>
-      <a href="/" class="hover:text-primary transition-colors font-medium">ROOT</a>
+      <a href={rootUrl} class="hover:text-primary transition-colors font-medium">ROOT</a>
       <span class="text-outline-variant">/</span>
-      <a href="/" class="hover:text-primary transition-colors font-medium">Blogs</a>
+      <a href={rootUrl} class="hover:text-primary transition-colors font-medium">Blogs</a>
       {dirSegments.map((segment, idx) => (
         <>
           <span class="text-outline-variant">/</span>

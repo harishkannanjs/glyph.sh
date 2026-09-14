@@ -1,5 +1,6 @@
 ---
 import type { SeriesInfo } from '@/lib/series';
+import { getRelativePath } from '@/site.config';
 
 interface Props {
   seriesInfo: SeriesInfo;
@@ -26,7 +27,7 @@ const { seriesInfo } = Astro.props;
         </span>
       ) : part.slug ? (
         <a
-          href={`/blog/${part.slug}`}
+          href={getRelativePath(`/blog/${part.slug}`)}
           class="w-6 h-6 flex items-center justify-center bg-surface-container border border-outline-variant text-on-surface-variant hover:text-primary hover:border-outline rounded-[2px] text-[11px] transition-colors"
           title={`Part ${part.part}: ${part.title}`}
         >
