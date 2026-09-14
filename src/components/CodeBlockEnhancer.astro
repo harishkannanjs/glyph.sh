@@ -22,7 +22,7 @@
 
       // Create container wrapper
       const wrapper = document.createElement('div');
-      wrapper.className = 'my-6 border border-outline-variant rounded-[2px] overflow-hidden font-mono text-[13px]';
+      wrapper.className = 'my-6 border border-outline-variant rounded-[2px] overflow-hidden font-mono text-[13px] max-w-full min-w-0';
       pre.parentNode.insertBefore(wrapper, pre);
 
       // Create header bar
@@ -60,6 +60,7 @@
       // Clean pre styling
       pre.style.margin = '0';
       pre.style.border = 'none';
+      pre.style.maxWidth = '100%';
 
       // Enhance diff lines if diff language
       if (lang === 'diff' && code) {

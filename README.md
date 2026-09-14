@@ -112,64 +112,123 @@ All identity and author details are stored directly in [`profile.json`](file:///
 
 ```json
 {
-  "author": "Harish",
-  "handle": "@harishkannanjs",
-  "role": "Security Researcher & Systems Developer",
-  "twitterHandle": "@harishkannanjs",
-  "title": "Harish // Terminal Blog",
-  "description": "Security research, vulnerability analysis, and low-level systems development.",
-  "siteUrl": "https://harishkannanjs.github.io",
-  "pgpKey": "0x4E89F19C2D4A88B1EE4089C91427AF10C9347890",
-  "githubUrl": "https://github.com/harishkannanjs",
-  "twitterUrl": "https://x.com/harishkannanjs",
-  "email": "harish@research.local",
+  "author": "Your Name",
+  "handle": "@yourusername",
+  "role": "Software Engineer",
+  "twitterHandle": "@yourusername",
+  "title": "Your Name // Terminal Blog",
+  "description": "Personal engineering notes, technical articles, and system projects.",
+  "siteUrl": "https://yourusername.github.io",
+  "githubUrl": "https://github.com/yourusername",
+  "twitterUrl": "https://x.com/yourusername",
+  "email": "you@example.com",
   "postsPerPage": 10,
   "giscus": {
     "enabled": true,
-    "repo": "harishkannanjs/blog",
-    "repoId": "",
+    "repo": "yourusername/blog",
+    "repoId": "R_kgD...",
     "category": "General",
-    "categoryId": ""
+    "categoryId": "DIC_kwD..."
   }
 }
 ```
 
-> **Dynamic Editor:** When running `bun run dev`, navigate to `http://localhost:4321/profile` to edit your details in the terminal UI. Clicking **"Save to Repository"** automatically persists changes directly into `profile.json` on disk.
+### Localhost Dev Mode (Profile & Comments Editing)
+To keep the website lightweight and eliminate complex external databases:
+- **In Local Development (`bun run dev`):** The `$ edit-profile` toolbar automatically appears on `http://localhost:4321/profile` (or press `e`). You can update your author name, role, bio, social links, logo, and Giscus comment settings directly. Saving exports your updated configuration straight to [`profile.json`](file:///X:/Develop/blog/profile.json).
+- **In Production (`github.io`):** The editing toolbar is **completely hidden**. Public visitors only see your clean, read-only author portfolio without any edit buttons or administrative interfaces.
+- **Git Push:** Whenever you edit [`profile.json`](file:///X:/Develop/blog/profile.json), run `git push` to publish your updates live to GitHub Pages.
 
 ---
 
-## 5. Setting Up Giscus (GitHub Discussions Comments)
+## 5. Setting Up Giscus (Discussions & Comments Powered by GitHub)
 
-Comments and peer reviews are backed by **GitHub Discussions** via Giscus. This ensures comments are stored natively inside your GitHub repository while ensuring public visitors have **zero write access** to your codebase or GitHub Actions.
+Comments and peer review discussions are powered by **[Giscus](https://giscus.app)** — a modern, zero-server commenting system built on GitHub Discussions. Comments and reactions are stored directly and securely in your GitHub repository's **Discussions** tab, allowing visitors to comment using their GitHub accounts with full markdown, syntax highlighting, and emoji reactions.
 
-### Step 1: Enable GitHub Discussions
-1. Open your repository on GitHub: `https://github.com/<your-username>/blog`.
-2. Go to **Settings** $\rightarrow$ Scroll down to **Features**.
-3. Check the box for **Discussions**.
+### Prerequisites
+1. **Public Repository:** The repository hosting your discussions must be **Public** on GitHub (Giscus cannot access private repositories).
+2. **Discussions Enabled:** GitHub Discussions must be turned on in your repository settings.
+3. **Giscus GitHub App Authorized:** The Giscus app must be installed and granted access to your repository.
 
-### Step 2: Install the Giscus App
-1. Go to [giscus.app](https://giscus.app) or [github.com/apps/giscus](https://github.com/apps/giscus).
-2. Click **Install** and grant access to your `blog` repository (it requires permission *only* for Discussions, never code).
+---
 
-### Step 3: Get your Repository & Category IDs
-1. On [giscus.app](https://giscus.app), under **Configuration**, enter your repository: `<your-username>/blog`.
-2. Under **Discussion Category**, select your preferred category (e.g. `General` or `Announcements`).
-3. Scroll down to **Enable giscus** and copy your:
-   - `data-repo-id` (starts with `R_kgDO...`)
-   - `data-category-id` (starts with `DIC_kwDO...`)
+### Step-by-Step Setup Guide
 
-### Step 4: Add IDs to `profile.json`
-Open [`profile.json`](file:///X:/Develop/blog/profile.json) and paste your credentials:
+#### Step 1: Enable GitHub Discussions
+1. Open your repository on GitHub.
+2. Click **Settings** (top navigation).
+3. Under the **General** tab, scroll down to the **Features** section.
+4. Check the box for **Discussions**.
+
+#### Step 2: Install and Authorize the Giscus GitHub App
+1. Go to the [Giscus GitHub App](https://github.com/apps/giscus).
+2. Click **Install** (or **Configure** if already installed).
+3. Under **Repository access**, select **Only select repositories** and pick your blog repository (e.g. `yourusername/blog`), or choose **All repositories**.
+4. Click **Install & Authorize**.
+
+#### Step 3: Obtain `repoId` and `categoryId` from Giscus
+1. Navigate to **[giscus.app](https://giscus.app)**.
+2. Under **Configuration** $\rightarrow$ **Repository**:
+   - Enter your repository in `owner/repo` format (e.g. `yourusername/blog`).
+   - Giscus will run automated checks confirming your repo is public, has Discussions enabled, and the app is installed.
+3. Under **Page ↔ Discussions Mapping**:
+   - Select **Discussion title contains page `pathname`** (this matches our blog's `data-mapping="pathname"` integration).
+4. Under **Discussion Category**:
+   - Select your preferred category from the dropdown (usually **General** or **Announcements**).
+5. Scroll down to the **Enable giscus** section showing the generated `<script>` tag.
+6. Copy the following two attributes:
+   - `data-repo-id` (e.g., `R_kgDON...`)
+   - `data-category-id` (e.g., `DIC_kwDON...`)
+
+---
+
+### Step 4: Configure the Blog
+
+You can configure Giscus using either of the following two methods:
+
+#### Method A: Via the `/profile` UI (Localhost Dev Mode)
+1. Start the dev server: `bun run dev`.
+2. Open [http://localhost:4321/profile](http://localhost:4321/profile) in your browser.
+3. Click **$ edit-profile** (or press the `e` shortcut key).
+4. Scroll to the **giscus.comments (GitHub Discussions)** section:
+   - **giscus.repo:** `yourusername/blog`
+   - **giscus.repoId:** `R_kgDON...`
+   - **giscus.category:** `General` (matches your chosen category name)
+   - **giscus.categoryId:** `DIC_kwDON...`
+5. Click **Save to profile.json**.
+
+#### Method B: Directly in `profile.json`
+Open [`profile.json`](file:///X:/Develop/blog/profile.json) in your project root and update the `giscus` object:
+
 ```json
-"giscus": {
-  "enabled": true,
-  "repo": "<your-username>/blog",
-  "repoId": "R_kgDO...",
-  "category": "General",
-  "categoryId": "DIC_kwDO..."
+{
+  "giscus": {
+    "enabled": true,
+    "repo": "yourusername/blog",
+    "repoId": "R_kgDON...",
+    "category": "General",
+    "categoryId": "DIC_kwDON..."
+  }
 }
 ```
-Commit and push. Embedded discussions will automatically activate under every article. If not yet configured, a clean fallback card directs readers to your repository Discussions tab without broken iframe errors.
+
+---
+
+### Step 5: Verify & Deploy
+1. Open any blog post on `http://localhost:4321/blog/...`.
+2. Scroll to the bottom to the **Discussions & Peer Review** section.
+3. The Giscus comment interface will load automatically with Catppuccin Mocha theme (synchronized with light/dark theme toggles).
+4. Commit and push your changes to GitHub:
+   ```bash
+   git add profile.json README.md
+   git commit -m "feat: configure giscus discussions"
+   git push origin main
+   ```
+
+### Troubleshooting
+- **"Discussion not found" or "Comments not loading":** Verify that the repository is **public**, the [Giscus App](https://github.com/apps/giscus) has repository access permissions, and your `repoId` and `categoryId` values strictly match the ones generated on [giscus.app](https://giscus.app).
+- **Fallback Card Appears:** If `enabled` is `false` or any required IDs (`repo`, `repoId`, `categoryId`) are blank, the blog displays a clean fallback card with a direct link to your GitHub Discussions tab so visitors can still engage without errors.
+
 
 ---
 

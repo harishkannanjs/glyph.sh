@@ -1,0 +1,538 @@
+---
+// TextMagnifier.astro: Interactive iPhone-style glassy magnifying loupe for reading article text with custom cursor
+---
+
+<div class="relative group inline-flex" id="magnifier-tool-container">
+  <button
+    type="button"
+    id="magnifier-toggle-btn"
+    class="flex items-center justify-center w-7 h-7 bg-surface-container border border-outline-variant hover:border-primary text-on-surface-variant hover:text-primary rounded-[2px] transition-colors cursor-pointer select-none"
+    title="Toggle Text Magnifier [Alt+M]"
+    aria-label="Toggle Text Magnifier"
+    aria-pressed="false"
+  >
+    <!-- Magnifier SVG Icon -->
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="w-3.5 h-3.5 transition-transform group-hover:scale-105"
+    >
+      <circle cx="11" cy="11" r="7"></circle>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+    </svg>
+  </button>
+
+  <!-- Hover Tooltip -->
+  <span
+    id="magnifier-tooltip"
+    class="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-surface-container-highest border border-outline-variant text-[10px] text-on-surface px-1.5 py-0.5 rounded-[2px] opacity-0 group-hover:opacity-100 transition-opacity z-30 font-mono select-none"
+  >
+    Text Magnifier [Alt+M]
+  </span>
+</div>
+
+<!-- Floating iPhone Glassy Magnifier Loupe (Appears strictly when hovering over article text) -->
+<div
+  id="text-magnifier-loupe"
+  class="pointer-events-none fixed z-[9999] rounded-full overflow-hidden opacity-0 select-none will-change-transform"
+  style="width: 150px; height: 150px; left: 0; top: 0; transform: translate3d(-999px, -999px, 0); transition: opacity 0.15s ease-out; pointer-events: none !important;"
+  aria-hidden="true"
+>
+  <!-- Background fill so magnified text has solid contrast matching page surface -->
+  <div class="pointer-events-none absolute inset-0 -z-10 bg-surface" style="pointer-events: none !important;"></div>
+
+  <!-- Cloned article content wrapper that scales and translates under cursor -->
+  <div id="magnifier-mirror-wrapper" class="pointer-events-none absolute left-0 top-0 origin-top-left will-change-transform" style="pointer-events: none !important;"></div>
+
+  <!-- iPhone Curved Glass Bezel and Specular Sheen Overlays -->
+  <div class="magnifier-glass-bezel pointer-events-none absolute inset-0 rounded-full" style="pointer-events: none !important;"></div>
+  <div class="magnifier-glass-sheen pointer-events-none absolute inset-0 rounded-full" style="pointer-events: none !important;"></div>
+  <div class="magnifier-glass-reticle pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-black/60 bg-[#fef08a] shadow-xs" style="pointer-events: none !important;"></div>
+</div>
+
+<style>
+  /* Custom small magnifier cursor with precision center dot pointer matching the loupe center */
+  :global(html.magnifier-active),
+  :global(html.magnifier-active *) {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28' fill='none'%3E%3Ccircle cx='10' cy='10' r='6.5' stroke='%23000000' stroke-width='3.2' opacity='0.45'/%3E%3Cline x1='14.5' y1='14.5' x2='21.5' y2='21.5' stroke='%23000000' stroke-width='4.2' stroke-linecap='round' opacity='0.45'/%3E%3Ccircle cx='10' cy='10' r='6.5' stroke='%23ffffff' stroke-width='2'/%3E%3Ccircle cx='10' cy='10' r='6.5' stroke='%2310b981' stroke-width='1.2'/%3E%3Cline x1='14.5' y1='14.5' x2='21.5' y2='21.5' stroke='%23ffffff' stroke-width='3' stroke-linecap='round'/%3E%3Cline x1='14.5' y1='14.5' x2='21.5' y2='21.5' stroke='%2310b981' stroke-width='1.8' stroke-linecap='round'/%3E%3Ccircle cx='10' cy='10' r='1.8' fill='%23fef08a' stroke='%23000000' stroke-width='0.8'/%3E%3C/svg%3E") 10 10, crosshair !important;
+  }
+
+  :global(html.magnifier-active.reader-mode-active),
+  :global(html.magnifier-active.reader-mode-active *) {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28' fill='none'%3E%3Ccircle cx='10' cy='10' r='6.5' stroke='%23000000' stroke-width='3.2' opacity='0.45'/%3E%3Cline x1='14.5' y1='14.5' x2='21.5' y2='21.5' stroke='%23000000' stroke-width='4.2' stroke-linecap='round' opacity='0.45'/%3E%3Ccircle cx='10' cy='10' r='6.5' stroke='%23ffffff' stroke-width='2'/%3E%3Ccircle cx='10' cy='10' r='6.5' stroke='%23e5a962' stroke-width='1.2'/%3E%3Cline x1='14.5' y1='14.5' x2='21.5' y2='21.5' stroke='%23ffffff' stroke-width='3' stroke-linecap='round'/%3E%3Cline x1='14.5' y1='14.5' x2='21.5' y2='21.5' stroke='%23e5a962' stroke-width='1.8' stroke-linecap='round'/%3E%3Ccircle cx='10' cy='10' r='1.8' fill='%23fef08a' stroke='%23000000' stroke-width='0.8'/%3E%3C/svg%3E") 10 10, crosshair !important;
+  }
+
+  /* Absolute non-interference: loupe and all cloned content can never capture clicks or pointer events */
+  #text-magnifier-loupe,
+  #text-magnifier-loupe *,
+  #magnifier-mirror-wrapper,
+  #magnifier-mirror-wrapper * {
+    pointer-events: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+
+  /* iPhone Glassy Circular Loupe Styling (Strictly hidden when not active) */
+  #text-magnifier-loupe {
+    display: none !important;
+    border: 2px solid rgba(255, 255, 255, 0.55);
+    box-shadow:
+      0 20px 45px -8px rgba(0, 0, 0, 0.45),
+      0 8px 18px rgba(0, 0, 0, 0.22),
+      0 0 0 1px rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
+  }
+
+  :global(html.magnifier-active) #text-magnifier-loupe {
+    display: block !important;
+    pointer-events: none !important;
+  }
+
+  /* Dark mode glassy rim adjustments */
+  :global(html.dark) #text-magnifier-loupe {
+    border: 2px solid rgba(255, 255, 255, 0.38);
+    box-shadow:
+      0 22px 48px -6px rgba(0, 0, 0, 0.75),
+      0 8px 20px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.18);
+  }
+
+  /* Reader mode warm amber glassy rim adjustments */
+  :global(html.reader-mode-active) #text-magnifier-loupe {
+    border: 2px solid rgba(229, 169, 98, 0.5);
+    box-shadow:
+      0 22px 48px -6px rgba(0, 0, 0, 0.65),
+      0 8px 20px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(229, 169, 98, 0.28);
+  }
+
+  /* iPhone 3D curved liquid glass inner bezel refraction */
+  .magnifier-glass-bezel {
+    box-shadow:
+      inset 0 3px 6px rgba(255, 255, 255, 0.55),
+      inset 0 -3px 8px rgba(0, 0, 0, 0.35),
+      inset 0 0 14px rgba(255, 255, 255, 0.18);
+  }
+
+  /* iPhone specular curved sheen gradient */
+  .magnifier-glass-sheen {
+    background: radial-gradient(
+      125% 125% at 26% 22%,
+      rgba(255, 255, 255, 0.32) 0%,
+      rgba(255, 255, 255, 0.09) 40%,
+      rgba(255, 255, 255, 0) 65%,
+      rgba(0, 0, 0, 0.16) 100%
+    );
+  }
+
+  /* In magnified mode, strip all audio-reader visual highlights while preserving exact box geometry (padding & border width) so text never shifts */
+  #magnifier-mirror-wrapper :global(.speech-active-block),
+  :global(html:not(.dark)) #magnifier-mirror-wrapper :global(.speech-active-block),
+  :global(html.reader-mode-active) #magnifier-mirror-wrapper :global(.speech-active-block),
+  :global(html.reader-mode-active:not(.dark)) #magnifier-mirror-wrapper :global(.speech-active-block) {
+    background-color: transparent !important;
+    border-left-color: transparent !important;
+    box-shadow: none !important;
+    color: inherit !important;
+  }
+
+  #magnifier-mirror-wrapper :global(.speech-active-block a) {
+    color: var(--primary) !important;
+  }
+
+  #magnifier-mirror-wrapper :global(.speech-active-block code) {
+    color: var(--primary) !important;
+  }
+
+  #magnifier-mirror-wrapper :global(.speech-word-active) {
+    background-color: transparent !important;
+    color: inherit !important;
+    font-weight: inherit !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  #magnifier-mirror-wrapper :global(.speech-skip-btn),
+  #magnifier-mirror-wrapper :global(.part-listen-btn) {
+    display: none !important;
+  }
+</style>
+
+<script is:inline>
+  (function () {
+    const MAGNIFICATION_SCALE = 1.75;
+    const LOUPE_RADIUS = 75;
+
+    let isMagnifierActive = false;
+    let isLoupeVisible = false;
+    let cachedArticle = null;
+    let cachedArticleRect = null;
+    let lastMouseX = -999;
+    let lastMouseY = -999;
+    let proseObserver = null;
+    let observerRaf = null;
+
+    function getElements() {
+      return {
+        btn: document.getElementById('magnifier-toggle-btn'),
+        tooltip: document.getElementById('magnifier-tooltip'),
+        loupe: document.getElementById('text-magnifier-loupe'),
+        mirrorWrapper: document.getElementById('magnifier-mirror-wrapper'),
+        article:
+          document.querySelector('article[data-pagefind-body]') ||
+          document.querySelector('article:not(#magnifier-article-clone)') ||
+          document.querySelector('article'),
+      };
+    }
+
+    function isPointerOverArticleText(e) {
+      const target = document.elementFromPoint(e.clientX, e.clientY);
+      if (!target) return false;
+
+      const article = target.closest('article');
+      if (!article) return false;
+
+      // Ignore interactive controls, UI buttons, audio skip buttons, or metadata bars
+      if (
+        target.closest(
+          'button, input, select, textarea, svg, #mobile-toc-btn, #mobile-toc-modal, .speech-skip-btn, .heading-anchor, .part-listen-btn'
+        )
+      ) {
+        return false;
+      }
+
+      // Check if target is inside prose or post header text
+      const isInsideProseOrHeader = target.closest('section.prose, header');
+      if (!isInsideProseOrHeader) return false;
+
+      // Target text tags
+      const textTags = new Set([
+        'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
+        'LI', 'A', 'SPAN', 'STRONG', 'EM', 'CODE',
+        'BLOCKQUOTE', 'TD', 'TH', 'FIGCAPTION', 'PRE'
+      ]);
+
+      if (!textTags.has(target.tagName)) {
+        if (!target.closest('p, h1, h2, h3, h4, h5, h6, li, a, blockquote, code, td, th, pre')) {
+          return false;
+        }
+      }
+
+      // Ensure text is non-empty
+      const text = target.textContent?.trim();
+      if (!text || text.length === 0) return false;
+
+      // Check if mouse is within element bounds
+      const r = target.getBoundingClientRect();
+      return (
+        e.clientX >= r.left - 4 &&
+        e.clientX <= r.right + 4 &&
+        e.clientY >= r.top - 4 &&
+        e.clientY <= r.bottom + 4
+      );
+    }
+
+    function syncArticleClone() {
+      const { article, mirrorWrapper } = getElements();
+      if (!article || !mirrorWrapper) return;
+
+      cachedArticle = article;
+      cachedArticleRect = article.getBoundingClientRect();
+
+      // Clone article with exact styles, classes, and fonts
+      const clone = article.cloneNode(true);
+      clone.id = 'magnifier-article-clone';
+      clone.removeAttribute('data-pagefind-body');
+      clone.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
+
+      // Remove skip button, part listen button, floating UI, or nested tool containers from clone
+      clone
+        .querySelectorAll(
+          '.speech-skip-btn, .heading-anchor, .part-listen-btn, #text-magnifier-loupe, #magnifier-tool-container'
+        )
+        .forEach((el) => el.remove());
+
+      // Note: We preserve the .speech-active-block class on the clone because our CSS transparentizes
+      // the background and border-color while preserving the padding (0.85rem / 4.75rem) and border-width (3px).
+      // This guarantees the text geometry and line breaks inside the loupe match the real DOM 100%.
+
+      clone.style.width = `${article.offsetWidth}px`;
+      clone.style.margin = '0';
+      clone.style.pointerEvents = 'none';
+      clone.style.userSelect = 'none';
+      clone.querySelectorAll('*').forEach((el) => {
+        if (el instanceof HTMLElement) {
+          el.style.pointerEvents = 'none';
+          el.style.userSelect = 'none';
+        }
+      });
+
+      mirrorWrapper.replaceChildren(clone);
+    }
+
+    function onAudioReaderChange() {
+      if (!isMagnifierActive) return;
+      syncArticleClone();
+      if (isLoupeVisible && lastMouseX >= 0 && lastMouseY >= 0) {
+        updateLoupeTransform(lastMouseX, lastMouseY);
+      }
+      setTimeout(() => {
+        if (isMagnifierActive && cachedArticle) {
+          cachedArticleRect = cachedArticle.getBoundingClientRect();
+          if (isLoupeVisible && lastMouseX >= 0 && lastMouseY >= 0) {
+            updateLoupeTransform(lastMouseX, lastMouseY);
+          }
+        }
+      }, 350);
+    }
+
+    function startProseObserver() {
+      const prose =
+        document.querySelector('article[data-pagefind-body] section.prose') ||
+        document.querySelector('article:not(#magnifier-article-clone) section.prose') ||
+        document.querySelector('article section.prose');
+      if (!prose || proseObserver) return;
+
+      proseObserver = new MutationObserver((mutations) => {
+        if (!isMagnifierActive) return;
+
+        // Ignore rapid word-level audio highlight mutations to prevent unnecessary re-cloning
+        const isStructural = mutations.some((m) => {
+          if (m.type === 'childList') return true;
+          if (m.type === 'attributes' && m.attributeName === 'class') {
+            const el = m.target;
+            if (el instanceof HTMLElement) {
+              if (el.classList.contains('speech-word')) return false;
+              if (el.classList.contains('part-listen-btn')) return false;
+            }
+            return true;
+          }
+          return false;
+        });
+
+        if (isStructural) {
+          if (observerRaf) cancelAnimationFrame(observerRaf);
+          observerRaf = requestAnimationFrame(() => {
+            if (isMagnifierActive) {
+              syncArticleClone();
+              if (isLoupeVisible && lastMouseX >= 0 && lastMouseY >= 0) {
+                updateLoupeTransform(lastMouseX, lastMouseY);
+              }
+            }
+          });
+        }
+      });
+
+      proseObserver.observe(prose, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class'],
+      });
+    }
+
+    function stopProseObserver() {
+      if (observerRaf) {
+        cancelAnimationFrame(observerRaf);
+        observerRaf = null;
+      }
+      if (proseObserver) {
+        proseObserver.disconnect();
+        proseObserver = null;
+      }
+    }
+
+    function updateLoupeTransform(mouseX, mouseY) {
+      const { loupe, mirrorWrapper } = getElements();
+      if (!loupe || !mirrorWrapper || !cachedArticle) return;
+
+      if (!cachedArticleRect) {
+        cachedArticleRect = cachedArticle.getBoundingClientRect();
+      }
+
+      // 1. Position loupe centered at cursor coordinates (0ms lag, integer pixels)
+      const loupeX = Math.round(mouseX - LOUPE_RADIUS);
+      const loupeY = Math.round(mouseY - LOUPE_RADIUS);
+      loupe.style.transform = `translate3d(${loupeX}px, ${loupeY}px, 0)`;
+
+      // 2. Position mirror content inside loupe so point under cursor is centered at lens center
+      const dx = mouseX - cachedArticleRect.left;
+      const dy = mouseY - cachedArticleRect.top;
+
+      const tx = LOUPE_RADIUS - dx * MAGNIFICATION_SCALE;
+      const ty = LOUPE_RADIUS - dy * MAGNIFICATION_SCALE;
+
+      mirrorWrapper.style.transform = `translate(${tx}px, ${ty}px) scale(${MAGNIFICATION_SCALE})`;
+      mirrorWrapper.style.transformOrigin = '0 0';
+    }
+
+    function handleMouseMove(e) {
+      if (!isMagnifierActive) return;
+
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+
+      const overText = isPointerOverArticleText(e);
+      const { loupe } = getElements();
+      if (!loupe) return;
+
+      if (overText) {
+        if (!isLoupeVisible) {
+          isLoupeVisible = true;
+          loupe.style.opacity = '1';
+        }
+        updateLoupeTransform(lastMouseX, lastMouseY);
+      } else if (isLoupeVisible) {
+        isLoupeVisible = false;
+        loupe.style.opacity = '0';
+      }
+    }
+
+    function handleScrollOrResize() {
+      if (!isMagnifierActive || !cachedArticle) return;
+      cachedArticleRect = cachedArticle.getBoundingClientRect();
+      if (isLoupeVisible && lastMouseX >= 0 && lastMouseY >= 0) {
+        updateLoupeTransform(lastMouseX, lastMouseY);
+      }
+    }
+
+    function setMagnifierActive(active) {
+      isMagnifierActive = active;
+      const html = document.documentElement;
+      const { btn, tooltip, loupe } = getElements();
+
+      if (active) {
+        html.classList.add('magnifier-active');
+        if (btn) {
+          btn.classList.add('border-primary', 'text-primary', 'bg-primary/10');
+          btn.setAttribute('aria-pressed', 'true');
+        }
+        if (tooltip) {
+          tooltip.textContent = 'Exit Magnifier [Esc / Alt+M]';
+        }
+
+        // Clone article once on activation
+        syncArticleClone();
+
+        startProseObserver();
+        window.addEventListener('audioreader:change', onAudioReaderChange);
+
+        window.addEventListener('mousemove', handleMouseMove, { passive: true });
+        window.addEventListener('scroll', handleScrollOrResize, { passive: true });
+        window.addEventListener('resize', handleScrollOrResize, { passive: true });
+      } else {
+        html.classList.remove('magnifier-active');
+        if (btn) {
+          btn.classList.remove('border-primary', 'text-primary', 'bg-primary/10');
+          btn.setAttribute('aria-pressed', 'false');
+        }
+        if (tooltip) {
+          tooltip.textContent = 'Text Magnifier [Alt+M]';
+        }
+
+        stopProseObserver();
+        window.removeEventListener('audioreader:change', onAudioReaderChange);
+
+        const { mirrorWrapper } = getElements();
+        if (mirrorWrapper) {
+          mirrorWrapper.replaceChildren();
+        }
+        cachedArticle = null;
+        cachedArticleRect = null;
+
+        if (loupe) {
+          loupe.style.opacity = '0';
+          loupe.style.transform = 'translate3d(-999px, -999px, 0)';
+        }
+        isLoupeVisible = false;
+
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('scroll', handleScrollOrResize);
+        window.removeEventListener('resize', handleScrollOrResize);
+      }
+    }
+
+    function toggleMagnifier() {
+      setMagnifierActive(!isMagnifierActive);
+    }
+
+    function initTextMagnifier() {
+      const { btn, loupe } = getElements();
+      if (loupe && loupe.parentElement !== document.body) {
+        document.body.appendChild(loupe);
+      }
+      if (btn) {
+        btn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleMagnifier();
+        };
+      }
+    }
+
+    // Global keyboard shortcut: Alt+M or Esc to exit
+    if (!window.__magnifierKeyHandlerRegistered) {
+      window.__magnifierKeyHandlerRegistered = true;
+      document.addEventListener('keydown', (e) => {
+        const isTargetInput = ['input', 'textarea', 'select'].includes(
+          document.activeElement?.tagName?.toLowerCase()
+        );
+
+        // Esc exits magnifier mode if active
+        if (e.key === 'Escape' && isMagnifierActive) {
+          setMagnifierActive(false);
+          return;
+        }
+
+        // Alt+M or Meta+M toggles magnifier
+        if (e.altKey && e.key.toLowerCase() === 'm') {
+          e.preventDefault();
+          toggleMagnifier();
+          return;
+        }
+
+        // Single key 'm' when not typing in any input or modal
+        if (
+          e.key.toLowerCase() === 'm' &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          !e.altKey &&
+          !isTargetInput
+        ) {
+          const uploadModal = document.getElementById('blog-upload-backdrop');
+          const isUploadOpen =
+            uploadModal &&
+            !uploadModal.classList.contains('hidden') &&
+            uploadModal.style.display !== 'none';
+          const paletteModal = document.getElementById('command-palette-backdrop');
+          const isPaletteOpen =
+            paletteModal &&
+            !paletteModal.classList.contains('hidden') &&
+            paletteModal.style.display !== 'none';
+
+          if (!isUploadOpen && !isPaletteOpen) {
+            e.preventDefault();
+            toggleMagnifier();
+          }
+        }
+      });
+    }
+
+    // Clean up when leaving page
+    document.addEventListener('astro:before-swap', () => setMagnifierActive(false));
+    window.addEventListener('pagehide', () => setMagnifierActive(false));
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initTextMagnifier);
+    } else {
+      initTextMagnifier();
+    }
+    document.addEventListener('astro:page-load', initTextMagnifier);
+  })();
+</script>

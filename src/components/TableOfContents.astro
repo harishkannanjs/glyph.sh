@@ -17,7 +17,7 @@ const tocHeadings = headings.filter((h) => h.depth === 2 || h.depth === 3);
 {tocHeadings.length > 0 && (
   <>
     {mode === 'rail' ? (
-      <aside class="hidden lg:block w-[240px] shrink-0 self-stretch">
+      <aside id="toc-rail" class="toc-rail hidden lg:block w-[240px] shrink-0 self-stretch">
         <div class="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto p-4 bg-surface-container-low border border-outline-variant rounded-[2px] font-mono text-[12px]">
           <div class="flex items-center gap-1.5 pb-2 mb-2 border-b border-outline-variant text-[11px] text-outline uppercase tracking-wider">
             <span class="text-primary font-bold">&gt;</span>
@@ -28,7 +28,7 @@ const tocHeadings = headings.filter((h) => h.depth === 2 || h.depth === 3);
               <a
                 href={`#${h.slug}`}
                 data-toc-link={h.slug}
-                class={`toc-link text-on-surface-variant hover:text-primary transition-colors leading-relaxed block ${
+                class={`toc-link text-on-surface-variant hover:text-primary transition-colors leading-relaxed block break-words ${
                   h.depth === 3 ? 'pl-3 text-[11px]' : 'font-medium'
                 }`}
               >
@@ -53,7 +53,7 @@ const tocHeadings = headings.filter((h) => h.depth === 2 || h.depth === 3);
             {tocHeadings.map((h) => (
               <a
                 href={`#${h.slug}`}
-                class={`text-on-surface-variant hover:text-primary transition-colors ${
+                class={`text-on-surface-variant hover:text-primary transition-colors block break-words ${
                   h.depth === 3 ? 'pl-3 text-[11px]' : 'font-medium'
                 }`}
               >
@@ -90,7 +90,7 @@ const tocHeadings = headings.filter((h) => h.depth === 2 || h.depth === 3);
               {tocHeadings.map((h) => (
                 <a
                   href={`#${h.slug}`}
-                  class={`mobile-toc-link block text-on-surface-variant hover:text-primary transition-colors ${
+                  class={`mobile-toc-link block text-on-surface-variant hover:text-primary transition-colors break-words ${
                     h.depth === 3 ? 'pl-3 text-[11px]' : 'font-medium'
                   }`}
                 >
@@ -106,67 +106,127 @@ const tocHeadings = headings.filter((h) => h.depth === 2 || h.depth === 3);
 )}
 
 <script is:inline>
-  function initTocHighlight() {
-    const links = document.querySelectorAll('.toc-link');
-    const mobileLinks = document.querySelectorAll('.mobile-toc-link');
-    
-    // Mobile TOC toggle logic
-    const mobileBtn = document.getElementById('mobile-toc-btn');
-    const mobileModal = document.getElementById('mobile-toc-modal');
-    const mobileClose = document.getElementById('mobile-toc-close');
+  (function () {
+    // 1. Single global click handler with capture phase to guarantee smooth scrolling
+    if (!window._tocScrollHandlerAttached) {
+      window._tocScrollHandlerAttached = true;
 
-    if (mobileBtn && mobileModal) {
-      mobileBtn.onclick = () => mobileModal.classList.remove('hidden');
-      if (mobileClose) {
-        mobileClose.onclick = () => mobileModal.classList.add('hidden');
-      }
-      mobileModal.onclick = (e) => {
-        if (e.target === mobileModal) mobileModal.classList.add('hidden');
-      };
-      mobileLinks.forEach((l) => {
-        l.onclick = () => mobileModal.classList.add('hidden');
-      });
+      document.addEventListener(
+        'click',
+        (e) => {
+          const link = e.target.closest(
+            '.toc-link, .mobile-toc-link, details nav a[href^="#"]'
+          );
+          if (!link) return;
+
+          const href = link.getAttribute('href');
+          if (!href || !href.startsWith('#') || href.length <= 1) return;
+
+          const targetId = decodeURIComponent(href.slice(1));
+          const targetEl = document.getElementById(targetId);
+          if (!targetEl) return;
+
+          e.preventDefault();
+          e.stopPropagation();
+
+          // 70px offset gives clearance below fixed header; 28px in Reader Mode where header is hidden
+          const isReader = document.documentElement.classList.contains('reader-mode-active');
+          const headerOffset = isReader ? 28 : 70;
+          const targetTop =
+            targetEl.getBoundingClientRect().top + window.scrollY - headerOffset;
+
+          window.scrollTo({
+            top: targetTop,
+            behavior: 'smooth',
+          });
+
+          if (history.replaceState) {
+            history.replaceState(null, '', `#${targetId}`);
+          }
+
+          // Close mobile TOC modal if open
+          const mobileModal = document.getElementById('mobile-toc-modal');
+          if (mobileModal && !mobileModal.classList.contains('hidden')) {
+            mobileModal.classList.add('hidden');
+          }
+
+          // Close inline details disclosure on mobile if open
+          const detailsParent = link.closest('details');
+          if (detailsParent && window.innerWidth < 1024) {
+            detailsParent.removeAttribute('open');
+          }
+        },
+        { capture: true }
+      );
     }
 
-    if (links.length === 0) return;
+    function initTocUI() {
+      // 2. Mobile TOC toggle modal logic
+      const mobileBtn = document.getElementById('mobile-toc-btn');
+      const mobileModal = document.getElementById('mobile-toc-modal');
+      const mobileClose = document.getElementById('mobile-toc-close');
 
-    const headingElements = [];
-    links.forEach((link) => {
-      const slug = link.getAttribute('data-toc-link');
-      if (slug) {
-        const el = document.getElementById(slug);
-        if (el) headingElements.push({ slug, el });
-      }
-    });
-
-    function highlightCurrent() {
-      const scrollPos = window.scrollY + 140;
-      let currentSlug = '';
-
-      for (let i = 0; i < headingElements.length; i++) {
-        if (headingElements[i].el.offsetTop <= scrollPos) {
-          currentSlug = headingElements[i].slug;
-        } else {
-          break;
+      if (mobileBtn && mobileModal) {
+        mobileBtn.onclick = () => mobileModal.classList.remove('hidden');
+        if (mobileClose) {
+          mobileClose.onclick = () => mobileModal.classList.add('hidden');
         }
+        mobileModal.onclick = (e) => {
+          if (e.target === mobileModal) mobileModal.classList.add('hidden');
+        };
       }
 
+      // 3. Active heading highlight on scroll
+      const links = document.querySelectorAll('.toc-link');
+      if (links.length === 0) return;
+
+      const headingElements = [];
       links.forEach((link) => {
         const slug = link.getAttribute('data-toc-link');
-        if (slug === currentSlug) {
-          link.classList.add('text-primary', 'font-bold');
-          link.classList.remove('text-on-surface-variant');
-        } else {
-          link.classList.remove('text-primary', 'font-bold');
-          link.classList.add('text-on-surface-variant');
+        if (slug) {
+          const el = document.getElementById(slug);
+          if (el) headingElements.push({ slug, el });
         }
       });
+
+      function highlightCurrent() {
+        const isReader = document.documentElement.classList.contains('reader-mode-active');
+        const scrollPos = window.scrollY + (isReader ? 60 : 120);
+        let currentSlug = '';
+
+        for (let i = 0; i < headingElements.length; i++) {
+          if (headingElements[i].el.offsetTop <= scrollPos) {
+            currentSlug = headingElements[i].slug;
+          } else {
+            break;
+          }
+        }
+
+        links.forEach((link) => {
+          const slug = link.getAttribute('data-toc-link');
+          if (slug === currentSlug) {
+            link.classList.add('text-primary', 'font-bold');
+            link.classList.remove('text-on-surface-variant');
+          } else {
+            link.classList.remove('text-primary', 'font-bold');
+            link.classList.add('text-on-surface-variant');
+          }
+        });
+      }
+
+      if (window._tocScrollHighlight) {
+        window.removeEventListener('scroll', window._tocScrollHighlight);
+      }
+      window._tocScrollHighlight = highlightCurrent;
+      window.addEventListener('scroll', highlightCurrent, { passive: true });
+      highlightCurrent();
     }
 
-    window.addEventListener('scroll', highlightCurrent, { passive: true });
-    highlightCurrent();
-  }
-
-  initTocHighlight();
-  document.addEventListener('astro:after-swap', initTocHighlight);
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initTocUI);
+    } else {
+      initTocUI();
+    }
+    document.addEventListener('astro:page-load', initTocUI);
+  })();
 </script>

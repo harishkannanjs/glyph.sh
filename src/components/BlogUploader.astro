@@ -1,0 +1,1666 @@
+---
+import fs from 'node:fs';
+import path from 'node:path';
+
+// Initial series metadata for auto-completion & episode collision prevention
+interface InitialSeriesData {
+  name: string;
+  displayName: string;
+  totalEpisodes: number;
+  nextEpisode: number;
+  episodes: Record<number, { episode: number; filename: string; title: string }>;
+}
+
+const initialSeriesMap: Record<string, InitialSeriesData> = {};
+
+try {
+  const seriesDir = path.resolve(process.cwd(), 'Blogs', 'series');
+  if (fs.existsSync(seriesDir)) {
+    const folders = fs.readdirSync(seriesDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => d.name);
+
+    for (const folder of folders) {
+      const folderPath = path.join(seriesDir, folder);
+      const files = fs.readdirSync(folderPath)
+        .filter((f) => /\.(md|mdx)$/i.test(f))
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+      const episodes: Record<number, { episode: number; filename: string; title: string }> = {};
+      let maxEp = 0;
+      let maxSeriesTotal = 0;
+      let lastlyUpdatedTotal = 0;
+      let latestFileMtime = 0;
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const filePath = path.join(folderPath, file);
+        let fileMtime = 0;
+        try {
+          const st = fs.statSync(filePath);
+          fileMtime = st.mtimeMs || 0;
+        } catch {}
+
+        let epNum: number | null = null;
+        let title = file.replace(/\.(md|mdx)$/i, '');
+
+        try {
+          const raw = fs.readFileSync(filePath, 'utf-8');
+          const partMatch = raw.match(/seriesPart:\s*(\d+)/i) || raw.match(/episode-(\d+)/i);
+          if (partMatch) {
+            epNum = parseInt(partMatch[1], 10);
+          }
+          const totalMatch = raw.match(/seriesTotal:\s*(\d+)/i);
+          if (totalMatch) {
+            const t = parseInt(totalMatch[1], 10);
+            if (!isNaN(t) && t > 0) {
+              if (t > maxSeriesTotal) maxSeriesTotal = t;
+              if (fileMtime >= latestFileMtime) {
+                latestFileMtime = fileMtime;
+                lastlyUpdatedTotal = t;
+              }
+            }
+          }
+          const titleMatch = raw.match(/^title:\s*["']?([^"'\r\n]+)["']?/m) || raw.match(/^#\s+(.+)$/m);
+          if (titleMatch) {
+            title = titleMatch[1].trim();
+          }
+        } catch {}
+
+        if (epNum === null) {
+          const match = file.match(/^(?:part[-_]?)?(\d+)(?:[-_]|$)/i);
+          if (match) {
+            epNum = parseInt(match[1], 10);
+          } else {
+            epNum = i + 1;
+          }
+        }
+
+        if (epNum > maxEp) maxEp = epNum;
+
+        episodes[epNum] = {
+          episode: epNum,
+          filename: file,
+          title,
+        };
+      }
+
+      const displayName = folder
+        .split(/[-_]+/)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+
+      const totalCount = Math.max(
+        lastlyUpdatedTotal || maxSeriesTotal || 1,
+        maxEp,
+        Object.keys(episodes).length
+      );
+
+      initialSeriesMap[folder] = {
+        name: folder,
+        displayName,
+        totalEpisodes: totalCount,
+        nextEpisode: maxEp + 1,
+        episodes,
+      };
+    }
+  }
+} catch {}
+
+const isDevServer = import.meta.env.DEV;
+---
+
+<!-- Blog Upload Section Card (Visible strictly on localhost only) -->
+<section
+  id="blog-upload-section"
+  class={`${isDevServer ? '' : 'hidden'} p-4 bg-surface-container-low border border-outline-variant rounded-[2px] font-mono space-y-3`}
+>
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <div class="flex items-center gap-2 text-[12px] text-primary">
+      <span class="font-bold">&gt;</span>
+      <span class="text-on-surface font-semibold">Publish New Article</span>
+      <span class="text-primary text-[10px] font-bold px-1.5 py-0.5 bg-primary/10 border border-primary/30 rounded-[2px]">[DEV // LOCALHOST]</span>
+    </div>
+    <span class="text-outline text-[11px]">.md &amp; .mdx files only</span>
+  </div>
+
+  <p class="text-[12px] text-on-surface-variant leading-relaxed">
+    Upload Markdown writeups directly into your repository. Standalone articles are stored in <code class="text-primary">Blogs/standalone/</code> and series tracks are stored in <code class="text-primary">Blogs/series/&lt;series_name&gt;/</code> with linked episode sequences.
+  </p>
+
+  <div class="pt-1 flex flex-wrap items-center gap-3">
+    <button
+      type="button"
+      id="open-blog-upload-modal-btn"
+      class="px-3.5 py-1.5 bg-primary text-on-primary font-semibold text-[12px] rounded-[2px] inline-flex items-center gap-2 hover:bg-primary/90 transition-colors cursor-pointer"
+    >
+      <span class="font-bold">+</span>
+      <span>Upload a Blog</span>
+      <span class="text-on-primary/70 text-[11px] font-normal">[Ctrl+U]</span>
+    </button>
+
+    <button
+      type="button"
+      id="open-blog-delete-modal-btn"
+      class="px-3 py-1.5 bg-surface-container border border-red-500/40 hover:border-red-500 text-red-400 hover:text-red-300 font-semibold text-[12px] rounded-[2px] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+      title="Delete an existing blog post (localhost only)"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-red-400">
+        <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+        <line x1="10" y1="11" x2="10" y2="17"></line>
+        <line x1="14" y1="11" x2="14" y2="17"></line>
+      </svg>
+      <span>Delete a Blog</span>
+      <span class="text-red-400/60 text-[11px] font-normal">[Ctrl+D]</span>
+    </button>
+
+    <span class="text-outline text-[11px] hidden sm:inline">shortcuts: <kbd class="px-1 py-0.5 bg-surface-container text-primary rounded-[2px] border border-outline-variant">u</kbd> upload, <kbd class="px-1 py-0.5 bg-surface-container text-red-400 rounded-[2px] border border-outline-variant">d</kbd> delete</span>
+  </div>
+</section>
+
+<!-- Global Blog Upload Modal Overlay (Full-screen viewport backdrop with teleport to body) -->
+<div
+  id="blog-upload-backdrop"
+  class="hidden fixed inset-0 top-0 left-0 right-0 bottom-0 w-screen h-screen min-h-[100dvh] z-[9999] bg-background/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+  style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100vw; height: 100vh; min-height: 100dvh;"
+  role="dialog"
+  aria-modal="true"
+  aria-label="Upload Article Modal"
+>
+  <div
+    id="blog-upload-box"
+    class="w-full max-w-[620px] bg-surface-container-low border border-outline-variant rounded-[2px] overflow-hidden shadow-none flex flex-col font-mono text-[12px] my-auto"
+  >
+    <!-- Header Bar (Matching terminal prompt style) -->
+    <div class="flex items-center justify-between px-4 py-2.5 border-b border-outline-variant bg-surface-container">
+      <div class="flex items-center gap-2">
+        <span class="text-primary font-bold select-none text-[13px]">~/Blogs $ upload-article</span>
+        <span class="text-[10px] text-primary border border-primary/30 px-1 py-0.2 rounded-[2px] font-bold">localhost</span>
+      </div>
+      <button
+        type="button"
+        id="blog-upload-close-btn"
+        class="text-on-surface-variant hover:text-on-surface p-1 transition-colors cursor-pointer text-xs"
+        aria-label="Close upload modal"
+      >
+        [ESC]
+      </button>
+    </div>
+
+    <!-- Modal Form -->
+    <form id="blog-upload-form" class="p-5 space-y-4">
+      <!-- Step 1: Article Type Switcher -->
+      <div class="space-y-1.5">
+        <label class="text-[11px] text-outline uppercase tracking-wider block">
+          1. Select Article Type
+        </label>
+        <div class="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            id="upload-type-standalone-btn"
+            class="px-3 py-2 border border-primary bg-primary text-on-primary text-center rounded-[2px] transition-colors cursor-pointer font-medium"
+          >
+            [ Standalone Article ]
+          </button>
+          <button
+            type="button"
+            id="upload-type-series-btn"
+            class="px-3 py-2 border border-outline-variant bg-surface-container text-on-surface-variant hover:text-primary hover:border-primary text-center rounded-[2px] transition-colors cursor-pointer font-medium"
+          >
+            [ Series Track ]
+          </button>
+        </div>
+      </div>
+
+      <!-- Series Track Configuration Fields -->
+      <div id="series-fields-wrapper" class="hidden space-y-3.5 border-y border-outline-variant/60 py-3.5 bg-surface-container/30 px-3 rounded-[2px]">
+        <!-- Step 2: Series Name with Themed Autocomplete Dropdown -->
+        <div class="space-y-1.5 relative" id="series-name-container">
+          <div class="flex justify-between items-center text-[11px] text-outline uppercase tracking-wider">
+            <label for="upload-series-name">2. Series Name</label>
+            <span class="text-primary text-[10px]">Folder in Blogs/series/</span>
+          </div>
+
+          <div class="relative">
+            <input
+              type="text"
+              id="upload-series-name"
+              name="seriesName"
+              class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary pl-3 pr-8 py-2 rounded-[2px] font-mono text-[12px] text-on-surface focus:outline-none placeholder:text-outline transition-colors"
+              placeholder="Type to search or enter a new series name..."
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button
+              type="button"
+              id="toggle-series-dropdown-btn"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-outline hover:text-primary p-1 text-[11px] font-mono cursor-pointer transition-colors"
+              title="Toggle existing series list"
+            >
+              ▼
+            </button>
+          </div>
+
+          <!-- Themed Autocomplete Dropdown List -->
+          <div
+            id="series-dropdown-menu"
+            class="hidden absolute left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto bg-surface-container-lowest border border-outline-variant rounded-[2px] z-50 font-mono text-[12px] shadow-2xl divide-y divide-outline-variant/40"
+          >
+            <!-- Injected by client script matching theme -->
+          </div>
+
+          <!-- Series status badge & hint -->
+          <div class="flex items-center justify-between text-[10px] text-outline pt-0.5">
+            <span>Pick an existing series or enter a new name</span>
+            <span id="series-mode-badge" class="font-bold text-primary"></span>
+          </div>
+        </div>
+
+        <!-- Step 3: Current Episode & Total Episodes (side-by-side) -->
+        <div class="space-y-2">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- Left: Current Episode # -->
+            <div class="space-y-1">
+              <label for="upload-episode-number" class="text-[11px] text-outline uppercase tracking-wider block">
+                3. Current Episode #
+              </label>
+              <div class="relative">
+                <input
+                  type="number"
+                  id="upload-episode-number"
+                  name="episode"
+                  min="1"
+                  step="1"
+                  class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary pl-3 pr-14 py-2 rounded-[2px] font-mono text-[12px] text-on-surface focus:outline-none placeholder:text-outline transition-colors"
+                  placeholder="1"
+                  autocomplete="off"
+                />
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-outline pointer-events-none font-mono">
+                  [Part]
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Total Episode Field (Locked by default for series, editable via pencil) -->
+            <div class="space-y-1">
+              <div class="flex justify-between items-center text-[11px] text-outline uppercase tracking-wider">
+                <label for="upload-total-episodes">Total Episode</label>
+                <button
+                  type="button"
+                  id="unlock-total-episodes-btn"
+                  class="text-outline hover:text-primary transition-colors p-0.5 cursor-pointer inline-flex items-center"
+                  title="Click pencil to edit total episodes count for this series"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5">
+                    <path d="M12 20h9"></path>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="relative">
+                <input
+                  type="number"
+                  id="upload-total-episodes"
+                  name="totalEpisodes"
+                  min="1"
+                  step="1"
+                  readonly
+                  class="w-full bg-surface-container-lowest/60 opacity-70 border border-outline-variant focus:border-primary pl-3 pr-14 py-2 rounded-[2px] font-mono text-[12px] text-on-surface focus:outline-none placeholder:text-outline transition-all cursor-not-allowed"
+                  placeholder="1"
+                  autocomplete="off"
+                />
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-outline pointer-events-none font-mono">
+                  [Total]
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Real-time Episode Conflict / Warning Banner -->
+          <div id="episode-conflict-msg" class="hidden p-2 rounded-[2px] bg-red-500/10 border border-red-500/50 text-[11px] text-red-400 font-mono flex items-start gap-1.5 leading-snug">
+            <span class="font-bold shrink-0">⚠</span>
+            <span id="episode-conflict-text"></span>
+          </div>
+
+          <!-- Existing Episodes Chips for Selected Series -->
+          <div id="series-episodes-preview" class="hidden space-y-1 pt-1">
+            <div class="flex items-center justify-between text-[10px] uppercase tracking-wider text-outline">
+              <span>Existing episodes in this series:</span>
+              <span id="series-episodes-summary" class="text-primary font-bold"></span>
+            </div>
+            <div id="series-episodes-chips" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pt-0.5"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 (or 2 for standalone): File Dropzone / Picker -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between items-center text-[11px] text-outline uppercase tracking-wider">
+          <label>
+            <span id="file-step-label">2</span>. Select Markdown File
+          </label>
+          <span class="text-outline text-[10px]">.md, .mdx (Max 25MB)</span>
+        </div>
+
+        <div
+          id="upload-dropzone"
+          class="border-2 border-dashed border-outline-variant hover:border-primary p-5 rounded-[2px] flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-surface-container/40"
+        >
+          <input
+            type="file"
+            id="upload-file-input"
+            accept=".md,.mdx,text/markdown"
+            class="hidden"
+          />
+          <div id="dropzone-idle" class="space-y-1.5 pointer-events-none">
+            <span class="text-primary text-[20px] block">📄</span>
+            <div class="text-[12px] text-on-surface">
+              <span class="text-primary font-semibold underline">Click to choose file</span> or drag and drop here
+            </div>
+            <div class="text-[11px] text-outline">
+              Only Markdown (.md) or MDX (.mdx) files are accepted
+            </div>
+          </div>
+
+          <div id="dropzone-selected" class="hidden flex items-center justify-between w-full p-2.5 bg-surface-container-lowest border border-outline-variant rounded-[2px]">
+            <div class="flex items-center gap-2.5 overflow-hidden text-left">
+              <span class="text-primary text-base shrink-0">✓</span>
+              <div class="truncate">
+                <span id="selected-filename" class="font-semibold text-primary block truncate"></span>
+                <span id="selected-filesize" class="text-[10px] text-outline block"></span>
+              </div>
+            </div>
+            <button
+              type="button"
+              id="remove-file-btn"
+              class="text-outline hover:text-primary px-2 py-1 transition-colors text-xs shrink-0 cursor-pointer"
+              title="Choose a different file"
+            >
+              [change]
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Target Path & Metadata Preview Box -->
+      <div class="p-2.5 bg-surface-container-lowest border border-outline-variant rounded-[2px] text-[11px] space-y-1">
+        <div class="flex items-center gap-2">
+          <span class="text-primary font-bold select-none">&gt;_</span>
+          <span class="text-outline shrink-0">Destination:</span>
+          <code id="target-path-preview" class="text-primary font-bold truncate">Blogs/standalone/&lt;filename&gt;</code>
+        </div>
+        <div id="target-meta-preview" class="hidden flex items-center gap-3 text-[10px] text-outline pl-5">
+          <span id="target-meta-episode"></span>
+          <span>·</span>
+          <span id="target-meta-tag"></span>
+        </div>
+      </div>
+
+      <!-- Upload Status Banner -->
+      <div id="upload-status-banner" class="hidden p-3 rounded-[2px] text-[12px] space-y-1.5 border font-mono">
+        <div id="upload-status-text" class="font-medium"></div>
+        <div id="upload-status-action" class="hidden pt-1"></div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="flex items-center justify-end gap-3 pt-2 border-t border-outline-variant">
+        <button
+          type="button"
+          id="cancel-upload-btn"
+          class="px-3 py-1.5 border border-outline-variant text-outline hover:text-on-surface rounded-[2px] text-[12px] transition-colors cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          id="submit-upload-btn"
+          disabled
+          class="px-4 py-1.5 bg-primary disabled:opacity-50 disabled:cursor-not-allowed text-on-primary font-semibold rounded-[2px] text-[12px] transition-colors cursor-pointer inline-flex items-center gap-1.5"
+        >
+          <span id="submit-upload-spinner" class="hidden animate-spin">⟳</span>
+          <span id="submit-upload-text">Upload &amp; Publish</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Global Blog Delete Modal Overlay (Matching terminal box style & full viewport blur) -->
+<div
+  id="blog-delete-backdrop"
+  class="hidden fixed inset-0 top-0 left-0 right-0 bottom-0 w-screen h-screen min-h-[100dvh] z-[9999] bg-background/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+  style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100vw; height: 100vh; min-height: 100dvh;"
+  role="dialog"
+  aria-modal="true"
+  aria-label="Delete Article Modal"
+>
+  <div
+    id="blog-delete-box"
+    class="w-full max-w-[640px] bg-surface-container-low border border-outline-variant rounded-[2px] overflow-hidden shadow-none flex flex-col font-mono text-[12px] my-auto"
+  >
+    <!-- Header Bar -->
+    <div class="flex items-center justify-between px-4 py-2.5 border-b border-outline-variant bg-surface-container">
+      <div class="flex items-center gap-2">
+        <span class="text-red-400 font-bold select-none text-[13px]">~/Blogs $ delete-article</span>
+        <span class="text-[10px] text-primary border border-primary/30 px-1 py-0.2 rounded-[2px] font-bold">localhost</span>
+      </div>
+      <button
+        type="button"
+        id="blog-delete-close-btn"
+        class="text-on-surface-variant hover:text-on-surface p-1 transition-colors cursor-pointer text-xs"
+        aria-label="Close delete modal"
+      >
+        [ESC]
+      </button>
+    </div>
+
+    <!-- View 1: Blog Selection List View -->
+    <div id="delete-list-view" class="flex flex-col">
+      <!-- Search / filter bar -->
+      <div class="border-b border-outline-variant bg-surface-container-lowest px-4 py-2 flex items-center gap-2">
+        <span class="text-primary font-bold">&gt;_</span>
+        <input
+          type="text"
+          id="delete-search-input"
+          placeholder="filter articles by filename, title, or directory..."
+          class="w-full bg-transparent font-mono text-[12px] text-on-surface placeholder:text-outline focus:outline-none"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <span id="delete-items-count" class="text-[10px] text-outline shrink-0"></span>
+      </div>
+
+      <!-- Scrollable list of articles -->
+      <div id="delete-articles-container" class="max-h-[380px] overflow-y-auto p-3 space-y-3">
+        <!-- Rendered dynamically by client script with directory-like grouping -->
+      </div>
+
+      <!-- Footer Bar -->
+      <div class="px-4 py-2.5 bg-surface-container border-t border-outline-variant flex items-center justify-between text-[11px] text-outline">
+        <span>Click the red trash icon to delete a file permanently</span>
+        <button
+          type="button"
+          id="close-delete-list-btn"
+          class="px-3 py-1 border border-outline-variant hover:border-outline text-on-surface-variant hover:text-on-surface rounded-[2px] cursor-pointer transition-colors"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+
+    <!-- View 2: Delete Confirmation View -->
+    <div id="delete-confirm-view" class="hidden p-5 space-y-4">
+      <div class="p-3.5 bg-red-500/10 border border-red-500/50 rounded-[2px] text-red-400 space-y-1.5 font-mono">
+        <div class="flex items-center gap-2 font-bold text-[13px]">
+          <span>⚠</span>
+          <span>ARE YOU SURE YOU WANT TO DELETE THIS ARTICLE?</span>
+        </div>
+        <p class="text-[11px] text-red-300 leading-relaxed">
+          Are you sure you want to delete this blog post? This action is permanent, will remove the file from your local repository, and cannot be undone.
+        </p>
+      </div>
+
+      <!-- Target File Box -->
+      <div class="p-3 bg-surface-container-lowest border border-outline-variant rounded-[2px] space-y-1 text-[12px] font-mono">
+        <div class="text-[10px] text-outline uppercase tracking-wider">File to be deleted:</div>
+        <code id="confirm-delete-filepath" class="text-red-400 font-bold block truncate text-[13px]"></code>
+        <div id="confirm-delete-details" class="text-[11px] text-outline pt-0.5 break-words"></div>
+      </div>
+
+      <!-- Directory Preservation Assurance -->
+      <div class="p-2.5 bg-surface-container/50 border border-outline-variant/60 rounded-[2px] text-[11px] text-on-surface-variant flex items-start gap-2">
+        <span class="text-primary font-bold shrink-0">&gt;</span>
+        <span>Directory safety guarantee: Only this single file will be removed. All enclosing series/standalone directories, folders, and sibling articles will remain completely untouched.</span>
+      </div>
+
+      <!-- Delete Action Status Message -->
+      <div id="delete-confirm-status" class="hidden p-3 rounded-[2px] text-[12px] font-mono border"></div>
+
+      <!-- Confirm / Cancel Actions -->
+      <div class="flex items-center justify-end gap-3 pt-3 border-t border-outline-variant">
+        <button
+          type="button"
+          id="cancel-delete-btn"
+          class="px-3.5 py-1.5 border border-outline-variant text-outline hover:text-on-surface rounded-[2px] text-[12px] transition-colors cursor-pointer"
+        >
+          [ Cancel ]
+        </button>
+        <button
+          type="button"
+          id="execute-delete-btn"
+          class="px-4 py-1.5 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-[2px] text-[12px] transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-none"
+        >
+          <span id="delete-action-spinner" class="hidden animate-spin">⟳</span>
+          <span id="delete-action-label">Yes, Delete Permanently</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Embedded Initial Series Metadata (SSR loaded, updated dynamically via /api/series-info) -->
+<script is:inline id="initial-series-data" type="application/json" set:html={JSON.stringify(initialSeriesMap)}></script>
+
+<script is:inline>
+  function initBlogUploader() {
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+    // Reveal or hide localhost upload trigger section
+    const uploadSection = document.getElementById('blog-upload-section');
+    if (uploadSection) {
+      if (isDev) {
+        uploadSection.classList.remove('hidden');
+      } else {
+        uploadSection.classList.add('hidden');
+      }
+    }
+
+    if (!isDev) return;
+
+    const backdrop = document.getElementById('blog-upload-backdrop');
+    if (!backdrop) return;
+
+    // Teleport backdrop modal to document.body so it is never clipped or constrained by parent container bounds
+    if (backdrop.parentElement !== document.body) {
+      document.body.appendChild(backdrop);
+    }
+
+    const openBtn = document.getElementById('open-blog-upload-modal-btn');
+    const closeBtn = document.getElementById('blog-upload-close-btn');
+    const cancelBtn = document.getElementById('cancel-upload-btn');
+    const form = document.getElementById('blog-upload-form');
+
+    const standaloneBtn = document.getElementById('upload-type-standalone-btn');
+    const seriesBtn = document.getElementById('upload-type-series-btn');
+    const seriesFieldsWrapper = document.getElementById('series-fields-wrapper');
+    const seriesInput = document.getElementById('upload-series-name');
+    const toggleDropdownBtn = document.getElementById('toggle-series-dropdown-btn');
+    const dropdownMenu = document.getElementById('series-dropdown-menu');
+    const seriesModeBadge = document.getElementById('series-mode-badge');
+
+    const episodeInput = document.getElementById('upload-episode-number');
+    const totalEpisodesInput = document.getElementById('upload-total-episodes');
+    const unlockTotalBtn = document.getElementById('unlock-total-episodes-btn');
+    const seriesEpisodesSummary = document.getElementById('series-episodes-summary');
+    const episodeConflictMsg = document.getElementById('episode-conflict-msg');
+    const episodeConflictText = document.getElementById('episode-conflict-text');
+    const seriesEpisodesPreview = document.getElementById('series-episodes-preview');
+    const seriesEpisodesChips = document.getElementById('series-episodes-chips');
+
+    const fileStepLabel = document.getElementById('file-step-label');
+    const dropzone = document.getElementById('upload-dropzone');
+    const fileInput = document.getElementById('upload-file-input');
+    const dropzoneIdle = document.getElementById('dropzone-idle');
+    const dropzoneSelected = document.getElementById('dropzone-selected');
+    const selectedFilename = document.getElementById('selected-filename');
+    const selectedFilesize = document.getElementById('selected-filesize');
+    const removeFileBtn = document.getElementById('remove-file-btn');
+
+    const previewPath = document.getElementById('target-path-preview');
+    const metaPreview = document.getElementById('target-meta-preview');
+    const metaEpisode = document.getElementById('target-meta-episode');
+    const metaTag = document.getElementById('target-meta-tag');
+
+    const submitBtn = document.getElementById('submit-upload-btn');
+    const submitText = document.getElementById('submit-upload-text');
+    const submitSpinner = document.getElementById('submit-upload-spinner');
+    const statusBanner = document.getElementById('upload-status-banner');
+    const statusText = document.getElementById('upload-status-text');
+    const statusAction = document.getElementById('upload-status-action');
+
+    let currentType = 'standalone'; // 'standalone' | 'series'
+    let chosenFile = null;
+    let isTotalLocked = true;
+
+    // Series metadata map: slug -> { name, displayName, totalEpisodes, nextEpisode, episodes: { [epNum]: { episode, filename, title } } }
+    let seriesData = {};
+    try {
+      const initEl = document.getElementById('initial-series-data');
+      if (initEl && initEl.textContent) {
+        seriesData = JSON.parse(initEl.textContent);
+      }
+    } catch {}
+
+    async function refreshSeriesData() {
+      try {
+        const res = await fetch('/api/series-info');
+        if (res.ok) {
+          const data = await res.json();
+          seriesData = data;
+          updateSeriesUI();
+        }
+      } catch {}
+    }
+    window.__refreshSeriesDataGlobal = refreshSeriesData;
+
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function sanitizeSlug(str) {
+      return (str || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    }
+
+    function renderSeriesDropdown(filterQuery = '') {
+      if (!dropdownMenu) return;
+      const q = (filterQuery || '').trim().toLowerCase();
+      const seriesList = Object.values(seriesData);
+
+      const matched = seriesList.filter((s) => {
+        if (!q) return true;
+        return (
+          s.name.toLowerCase().includes(q) ||
+          s.displayName.toLowerCase().includes(q)
+        );
+      });
+
+      dropdownMenu.innerHTML = '';
+
+      if (matched.length === 0) {
+        if (q) {
+          const sanitizedNew = sanitizeSlug(q);
+          const newItem = document.createElement('div');
+          newItem.className = 'px-3 py-2.5 flex items-center justify-between text-primary bg-primary/5 hover:bg-primary/10 cursor-pointer transition-colors';
+          newItem.innerHTML = `
+            <div class="flex items-center gap-2 truncate">
+              <span class="font-bold">+</span>
+              <span>New series: <strong class="underline">${sanitizedNew}</strong></span>
+            </div>
+            <span class="text-[10px] text-primary/70">[Create]</span>
+          `;
+          newItem.addEventListener('click', () => {
+            selectSeries(sanitizedNew);
+          });
+          dropdownMenu.appendChild(newItem);
+        } else {
+          const empty = document.createElement('div');
+          empty.className = 'px-3 py-2 text-[11px] text-outline text-center';
+          empty.textContent = 'No series exist yet. Type a name to create one.';
+          dropdownMenu.appendChild(empty);
+        }
+      } else {
+        matched.forEach((s) => {
+          const item = document.createElement('div');
+          item.className = 'series-dropdown-option px-3 py-2 flex items-center justify-between hover:bg-surface-container hover:text-primary cursor-pointer transition-colors';
+          const epCount = Object.keys(s.episodes || {}).length;
+          item.innerHTML = `
+            <div class="flex items-center gap-2 truncate">
+              <span class="text-primary font-bold">&gt;</span>
+              <span class="font-semibold text-on-surface">${s.displayName}</span>
+              <span class="text-[10px] text-outline">(${s.name})</span>
+            </div>
+            <span class="text-[10px] text-outline shrink-0">${epCount} ${epCount === 1 ? 'part' : 'parts'}</span>
+          `;
+          item.addEventListener('click', () => {
+            selectSeries(s.name);
+          });
+          dropdownMenu.appendChild(item);
+        });
+
+        // If query doesn't exactly match an existing series name, offer option to create new
+        const exactMatch = seriesList.some((s) => s.name === sanitizeSlug(q));
+        if (q && !exactMatch) {
+          const sanitizedNew = sanitizeSlug(q);
+          const newItem = document.createElement('div');
+          newItem.className = 'px-3 py-2 border-t border-outline-variant/30 flex items-center justify-between text-primary bg-primary/5 hover:bg-primary/10 cursor-pointer transition-colors';
+          newItem.innerHTML = `
+            <div class="flex items-center gap-2 truncate">
+              <span class="font-bold">+</span>
+              <span>Use new series: <strong>${sanitizedNew}</strong></span>
+            </div>
+            <span class="text-[10px] text-primary/70">[New]</span>
+          `;
+          newItem.addEventListener('click', () => {
+            selectSeries(sanitizedNew);
+          });
+          dropdownMenu.appendChild(newItem);
+        }
+      }
+
+      dropdownMenu.classList.remove('hidden');
+    }
+
+    function hideSeriesDropdown() {
+      if (dropdownMenu) {
+        dropdownMenu.classList.add('hidden');
+      }
+    }
+
+    function selectSeries(seriesSlug) {
+      if (!seriesInput) return;
+      seriesInput.value = seriesSlug;
+      hideSeriesDropdown();
+      updateSeriesUI();
+      validateForm();
+    }
+
+    function setTotalEpisodesLocked(locked, isNewSeries = false) {
+      isTotalLocked = locked;
+      if (!totalEpisodesInput) return;
+
+      if (isNewSeries) {
+        // For new series tracks, total episodes is unlocked and fully editable, default is always 1
+        totalEpisodesInput.readOnly = false;
+        totalEpisodesInput.classList.remove('opacity-70', 'cursor-not-allowed', 'bg-surface-container-lowest/60', 'border-primary');
+        totalEpisodesInput.classList.add('opacity-100', 'cursor-text', 'bg-surface-container-lowest');
+        if (unlockTotalBtn) unlockTotalBtn.classList.add('hidden');
+        return;
+      }
+
+      if (unlockTotalBtn) unlockTotalBtn.classList.remove('hidden');
+
+      if (locked) {
+        totalEpisodesInput.readOnly = true;
+        totalEpisodesInput.classList.add('opacity-70', 'cursor-not-allowed', 'bg-surface-container-lowest/60');
+        totalEpisodesInput.classList.remove('opacity-100', 'cursor-text', 'bg-surface-container-lowest', 'border-primary');
+        if (unlockTotalBtn) {
+          unlockTotalBtn.classList.remove('text-primary');
+          unlockTotalBtn.classList.add('text-outline');
+          unlockTotalBtn.title = 'Click pencil to edit total episodes for this series';
+        }
+      } else {
+        totalEpisodesInput.readOnly = false;
+        totalEpisodesInput.classList.remove('opacity-70', 'cursor-not-allowed', 'bg-surface-container-lowest/60');
+        totalEpisodesInput.classList.add('opacity-100', 'cursor-text', 'bg-surface-container-lowest', 'border-primary');
+        if (unlockTotalBtn) {
+          unlockTotalBtn.classList.remove('text-outline');
+          unlockTotalBtn.classList.add('text-primary');
+          unlockTotalBtn.title = 'Click to lock total episodes';
+        }
+        totalEpisodesInput.focus();
+        totalEpisodesInput.select();
+      }
+    }
+
+    function updateSeriesUI() {
+      if (!seriesInput) return;
+      const rawVal = seriesInput.value.trim();
+      const slug = sanitizeSlug(rawVal);
+      const s = seriesData[slug];
+
+      if (s) {
+        if (seriesModeBadge) {
+          seriesModeBadge.textContent = `[Existing: ${s.displayName}]`;
+          seriesModeBadge.className = 'font-bold text-primary';
+        }
+
+        // Fetch the lastly entered or edited total episode value
+        const lastTotal = s.totalEpisodes || 1;
+        if (totalEpisodesInput) {
+          totalEpisodesInput.value = lastTotal;
+        }
+        // Always lock when an existing series is selected
+        setTotalEpisodesLocked(true, false);
+
+        // Render existing episodes chips
+        if (seriesEpisodesPreview && seriesEpisodesChips) {
+          const epKeys = Object.keys(s.episodes || {}).sort((a, b) => Number(a) - Number(b));
+          if (epKeys.length > 0) {
+            seriesEpisodesPreview.classList.remove('hidden');
+            if (seriesEpisodesSummary) {
+              seriesEpisodesSummary.textContent = `${epKeys.length}/${lastTotal} parts`;
+            }
+            seriesEpisodesChips.innerHTML = epKeys
+              .map((k) => {
+                const ep = s.episodes[k];
+                return `<span class="px-1.5 py-0.5 bg-surface-container border border-outline-variant rounded-[2px] text-[10px] text-on-surface-variant font-mono" title="${ep.title}">Part ${k}: ${ep.filename}</span>`;
+              })
+              .join('');
+          } else {
+            seriesEpisodesPreview.classList.add('hidden');
+            seriesEpisodesChips.innerHTML = '';
+          }
+        }
+
+        // Auto-suggest next episode
+        if (episodeInput) {
+          episodeInput.value = s.nextEpisode || (Object.keys(s.episodes || {}).length + 1);
+        }
+      } else if (slug) {
+        if (seriesModeBadge) {
+          seriesModeBadge.textContent = '[New Series Track]';
+          seriesModeBadge.className = 'font-bold text-secondary';
+        }
+        if (seriesEpisodesPreview) seriesEpisodesPreview.classList.add('hidden');
+        if (episodeInput) {
+          episodeInput.value = '1';
+        }
+        // Default is ALWAYS 1 for new series created
+        if (totalEpisodesInput) {
+          totalEpisodesInput.value = '1';
+        }
+        setTotalEpisodesLocked(false, true);
+      } else {
+        if (seriesModeBadge) seriesModeBadge.textContent = '';
+        if (seriesEpisodesPreview) seriesEpisodesPreview.classList.add('hidden');
+        if (totalEpisodesInput) {
+          totalEpisodesInput.value = '1';
+        }
+        setTotalEpisodesLocked(false, true);
+      }
+
+      checkEpisodeConflict();
+      updatePreview();
+    }
+
+    function checkEpisodeConflict() {
+      if (currentType !== 'series' || !seriesInput || !episodeInput) {
+        if (episodeConflictMsg) episodeConflictMsg.classList.add('hidden');
+        if (episodeInput) episodeInput.classList.remove('border-red-500', 'focus:border-red-500');
+        if (totalEpisodesInput) totalEpisodesInput.classList.remove('border-red-500', 'focus:border-red-500');
+        return false;
+      }
+
+      const slug = sanitizeSlug(seriesInput.value);
+      const epNum = parseInt(episodeInput.value, 10);
+      const totalNum = parseInt(totalEpisodesInput?.value || '0', 10);
+      const s = seriesData[slug];
+
+      if (s && s.episodes && !isNaN(epNum) && epNum > 0 && s.episodes[epNum]) {
+        const existingEp = s.episodes[epNum];
+        // Allow if the uploaded file has the exact same name (updating existing file)
+        if (chosenFile && chosenFile.name.toLowerCase() === existingEp.filename.toLowerCase()) {
+          if (episodeConflictMsg) {
+            episodeConflictMsg.classList.remove('hidden', 'bg-red-500/10', 'border-red-500/50', 'text-red-400');
+            episodeConflictMsg.classList.add('bg-primary/10', 'border-primary/40', 'text-primary');
+            if (episodeConflictText) episodeConflictText.textContent = `Updating existing Part ${epNum} (${existingEp.filename}).`;
+          }
+          episodeInput.classList.remove('border-red-500', 'focus:border-red-500');
+        } else {
+          // Conflict with another file
+          if (episodeConflictMsg) {
+            episodeConflictMsg.classList.remove('hidden', 'bg-primary/10', 'border-primary/40', 'text-primary');
+            episodeConflictMsg.classList.add('bg-red-500/10', 'border-red-500/50', 'text-red-400');
+            if (episodeConflictText) {
+              episodeConflictText.textContent = `Episode ${epNum} is already used in '${s.displayName}' by "${existingEp.filename}". Choose a unique episode number.`;
+            }
+          }
+          episodeInput.classList.add('border-red-500', 'focus:border-red-500');
+          return true;
+        }
+      }
+
+      // Validate episode number against total episodes
+      if (!isNaN(epNum) && !isNaN(totalNum) && totalNum > 0 && epNum > totalNum) {
+        if (episodeConflictMsg) {
+          episodeConflictMsg.classList.remove('hidden', 'bg-primary/10', 'border-primary/40', 'text-primary');
+          episodeConflictMsg.classList.add('bg-red-500/10', 'border-red-500/50', 'text-red-400');
+          if (episodeConflictText) {
+            episodeConflictText.textContent = `Current episode (${epNum}) exceeds total episodes (${totalNum}). Click the pencil icon [Edit] to update total episodes.`;
+          }
+        }
+        totalEpisodesInput?.classList.add('border-red-500');
+        return true;
+      }
+
+      if (episodeConflictMsg) episodeConflictMsg.classList.add('hidden');
+      if (episodeInput) episodeInput.classList.remove('border-red-500', 'focus:border-red-500');
+      if (totalEpisodesInput) totalEpisodesInput.classList.remove('border-red-500');
+      return false;
+    }
+
+    function updatePreview() {
+      const fname = chosenFile ? chosenFile.name : '<filename>';
+      if (currentType === 'series') {
+        const sName = sanitizeSlug(seriesInput?.value) || '<series_name>';
+        const epNum = episodeInput?.value || '<ep>';
+        const totalNum = totalEpisodesInput?.value || '<total>';
+        if (previewPath) previewPath.textContent = `Blogs/series/${sName}/${fname}`;
+        if (metaPreview) metaPreview.classList.remove('hidden');
+        if (metaEpisode) metaEpisode.textContent = `seriesPart: ${epNum} / seriesTotal: ${totalNum}`;
+        if (metaTag) metaTag.textContent = `tags: [${sName}, episode-${epNum}]`;
+      } else {
+        if (previewPath) previewPath.textContent = `Blogs/standalone/${fname}`;
+        if (metaPreview) metaPreview.classList.add('hidden');
+      }
+      validateForm();
+    }
+
+    function validateForm() {
+      if (!submitBtn) return;
+      if (!chosenFile) {
+        submitBtn.disabled = true;
+        return;
+      }
+      if (currentType === 'series') {
+        const sName = sanitizeSlug(seriesInput?.value);
+        const epNum = parseInt(episodeInput?.value || '0', 10);
+        const totalNum = parseInt(totalEpisodesInput?.value || '0', 10);
+        if (!sName || isNaN(epNum) || epNum < 1 || isNaN(totalNum) || totalNum < 1 || totalNum < epNum) {
+          submitBtn.disabled = true;
+          return;
+        }
+        if (checkEpisodeConflict()) {
+          submitBtn.disabled = true;
+          return;
+        }
+      }
+      submitBtn.disabled = false;
+    }
+
+    function setType(type) {
+      currentType = type;
+      if (type === 'standalone') {
+        standaloneBtn?.classList.remove('bg-surface-container', 'text-on-surface-variant', 'border-outline-variant');
+        standaloneBtn?.classList.add('bg-primary', 'text-on-primary', 'border-primary');
+        seriesBtn?.classList.remove('bg-primary', 'text-on-primary', 'border-primary');
+        seriesBtn?.classList.add('bg-surface-container', 'text-on-surface-variant', 'border-outline-variant');
+
+        seriesFieldsWrapper?.classList.add('hidden');
+        hideSeriesDropdown();
+        if (fileStepLabel) fileStepLabel.textContent = '2';
+      } else {
+        seriesBtn?.classList.remove('bg-surface-container', 'text-on-surface-variant', 'border-outline-variant');
+        seriesBtn?.classList.add('bg-primary', 'text-on-primary', 'border-primary');
+        standaloneBtn?.classList.remove('bg-primary', 'text-on-primary', 'border-primary');
+        standaloneBtn?.classList.add('bg-surface-container', 'text-on-surface-variant', 'border-outline-variant');
+
+        seriesFieldsWrapper?.classList.remove('hidden');
+        if (fileStepLabel) fileStepLabel.textContent = '4';
+        refreshSeriesData();
+        updateSeriesUI();
+        seriesInput?.focus();
+      }
+      updatePreview();
+    }
+
+    function openModal() {
+      if (!backdrop) return;
+      if (backdrop.parentElement !== document.body) {
+        document.body.appendChild(backdrop);
+      }
+      backdrop.style.display = 'flex';
+      backdrop.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      refreshSeriesData();
+      resetStatus();
+      updatePreview();
+    }
+
+    function closeModal() {
+      if (!backdrop) return;
+      backdrop.style.display = 'none';
+      backdrop.classList.add('hidden');
+      document.body.style.overflow = '';
+      hideSeriesDropdown();
+    }
+
+    function resetStatus() {
+      if (!statusBanner) return;
+      statusBanner.className = 'hidden p-3 rounded-[2px] text-[12px] space-y-1.5 border font-mono';
+      if (statusText) statusText.textContent = '';
+      if (statusAction) {
+        statusAction.className = 'hidden pt-1';
+        statusAction.innerHTML = '';
+      }
+    }
+
+    function showStatus(message, isError, actionHtml) {
+      if (!statusBanner) return;
+      statusBanner.classList.remove('hidden');
+      if (isError) {
+        statusBanner.className = 'p-3 rounded-[2px] text-[12px] space-y-1.5 border border-red-500/50 bg-red-500/10 text-red-400 font-mono';
+      } else {
+        statusBanner.className = 'p-3 rounded-[2px] text-[12px] space-y-1.5 border border-green-500/50 bg-green-500/10 text-green-400 font-mono';
+      }
+      if (statusText) statusText.textContent = message;
+      if (actionHtml && statusAction) {
+        statusAction.classList.remove('hidden');
+        statusAction.innerHTML = actionHtml;
+      }
+    }
+
+    function handleFile(file) {
+      if (!file) return;
+      const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+      if (ext !== '.md' && ext !== '.mdx') {
+        showStatus('Error: Only .md or .mdx files are allowed.', true);
+        return;
+      }
+      resetStatus();
+      chosenFile = file;
+      if (selectedFilename) selectedFilename.textContent = file.name;
+      if (selectedFilesize) selectedFilesize.textContent = `${formatBytes(file.size)} · ${ext.toUpperCase()} document`;
+
+      dropzoneIdle?.classList.add('hidden');
+      dropzoneSelected?.classList.remove('hidden');
+      updatePreview();
+    }
+
+    function clearFile() {
+      chosenFile = null;
+      if (fileInput) fileInput.value = '';
+      dropzoneSelected?.classList.add('hidden');
+      dropzoneIdle?.classList.remove('hidden');
+      updatePreview();
+    }
+
+    // Attach listeners
+    standaloneBtn?.addEventListener('click', () => setType('standalone'));
+    seriesBtn?.addEventListener('click', () => setType('series'));
+
+    // Series Input events
+    seriesInput?.addEventListener('input', () => {
+      renderSeriesDropdown(seriesInput.value);
+      updateSeriesUI();
+    });
+
+    seriesInput?.addEventListener('focus', () => {
+      renderSeriesDropdown(seriesInput.value);
+    });
+
+    toggleDropdownBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (dropdownMenu?.classList.contains('hidden')) {
+        renderSeriesDropdown('');
+      } else {
+        hideSeriesDropdown();
+      }
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (
+        !seriesInput?.contains(e.target) &&
+        !toggleDropdownBtn?.contains(e.target) &&
+        !dropdownMenu?.contains(e.target)
+      ) {
+        hideSeriesDropdown();
+      }
+    });
+
+    // Episode Input events
+    episodeInput?.addEventListener('input', () => {
+      // Strictly enforce numbers only
+      episodeInput.value = episodeInput.value.replace(/[^0-9]/g, '');
+      checkEpisodeConflict();
+      updatePreview();
+    });
+
+    // Total Episodes unlock button toggle
+    unlockTotalBtn?.addEventListener('click', () => {
+      setTotalEpisodesLocked(!isTotalLocked);
+    });
+
+    // Total Episodes Input events
+    totalEpisodesInput?.addEventListener('input', () => {
+      // Strictly enforce numbers only
+      totalEpisodesInput.value = totalEpisodesInput.value.replace(/[^0-9]/g, '');
+      if (seriesEpisodesSummary && currentType === 'series') {
+        const slug = sanitizeSlug(seriesInput?.value);
+        const s = seriesData[slug];
+        const epCount = s ? Object.keys(s.episodes || {}).length : 0;
+        seriesEpisodesSummary.textContent = `${epCount}/${totalEpisodesInput.value || 1} parts`;
+      }
+      checkEpisodeConflict();
+      updatePreview();
+    });
+
+    openBtn?.addEventListener('click', openModal);
+    closeBtn?.addEventListener('click', closeModal);
+    cancelBtn?.addEventListener('click', closeModal);
+
+    backdrop?.addEventListener('click', (e) => {
+      if (e.target === backdrop) closeModal();
+    });
+
+    // Dropzone events
+    dropzone?.addEventListener('click', (e) => {
+      if (e.target === removeFileBtn || removeFileBtn?.contains(e.target)) return;
+      fileInput?.click();
+    });
+
+    fileInput?.addEventListener('change', () => {
+      if (fileInput.files && fileInput.files[0]) {
+        handleFile(fileInput.files[0]);
+      }
+    });
+
+    removeFileBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      clearFile();
+    });
+
+    dropzone?.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('border-primary', 'bg-primary/5');
+    });
+
+    dropzone?.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('border-primary', 'bg-primary/5');
+    });
+
+    dropzone?.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('border-primary', 'bg-primary/5');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    // Handle upload submission
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!chosenFile) return;
+
+      const seriesName = currentType === 'series' ? (seriesInput?.value || '').trim() : '';
+      const cleanSeries = sanitizeSlug(seriesName);
+      const episodeNum = currentType === 'series' ? parseInt(episodeInput?.value || '1', 10) : undefined;
+      const totalEpNum = currentType === 'series' ? parseInt(totalEpisodesInput?.value || '1', 10) : undefined;
+
+      if (currentType === 'series') {
+        if (!cleanSeries) {
+          showStatus('Please specify a series name.', true);
+          seriesInput?.focus();
+          return;
+        }
+        if (isNaN(episodeNum) || episodeNum < 1) {
+          showStatus('Please specify a valid episode number (1, 2, 3...).', true);
+          episodeInput?.focus();
+          return;
+        }
+        if (isNaN(totalEpNum) || totalEpNum < 1) {
+          showStatus('Please specify a valid total episodes number.', true);
+          totalEpisodesInput?.focus();
+          return;
+        }
+        if (totalEpNum < episodeNum) {
+          showStatus(`Total episodes (${totalEpNum}) cannot be less than current episode (${episodeNum}). Click the pencil icon [Edit] to update total episodes.`, true);
+          return;
+        }
+        if (checkEpisodeConflict()) {
+          showStatus(`Episode conflict or total mismatch detected. Please resolve before uploading.`, true);
+          return;
+        }
+      }
+
+      submitBtn.disabled = true;
+      submitSpinner?.classList.remove('hidden');
+      if (submitText) submitText.textContent = 'Saving to repository...';
+
+      try {
+        const textContent = await chosenFile.text();
+        const response = await fetch('/api/upload-blog', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: currentType,
+            seriesName: cleanSeries,
+            episode: episodeNum,
+            totalEpisodes: totalEpNum,
+            filename: chosenFile.name,
+            content: textContent,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          await refreshSeriesData();
+
+          const actionHtml = `
+            <div class="flex items-center gap-3 mt-1">
+              <a href="${data.url}" class="px-2.5 py-1 bg-green-600 text-white rounded-[2px] hover:bg-green-500 font-semibold text-[11px] inline-flex items-center gap-1 transition-colors">
+                <span>View Article Live</span>
+                <span>→</span>
+              </a>
+              <button type="button" id="upload-another-btn" class="text-green-300 hover:underline text-[11px] cursor-pointer">
+                [Upload another file]
+              </button>
+            </div>
+          `;
+          showStatus(`✓ ${data.message}`, false, actionHtml);
+
+          document.getElementById('upload-another-btn')?.addEventListener('click', () => {
+            clearFile();
+            resetStatus();
+            if (currentType === 'series' && seriesData[cleanSeries]) {
+              if (episodeInput) episodeInput.value = seriesData[cleanSeries].nextEpisode || 1;
+              if (totalEpisodesInput) totalEpisodesInput.value = seriesData[cleanSeries].totalEpisodes || 1;
+              setTotalEpisodesLocked(true, false);
+            }
+          });
+
+          // Reset submit button state
+          if (submitText) submitText.textContent = 'Uploaded ✓';
+          setTimeout(() => {
+            if (submitText) submitText.textContent = 'Upload & Publish';
+            validateForm();
+          }, 2500);
+        } else {
+          showStatus(`Error: ${data.error || 'Failed to write article file'}`, true);
+          submitBtn.disabled = false;
+        }
+      } catch (err) {
+        showStatus(`Upload failed: ${err.message}`, true);
+        submitBtn.disabled = false;
+      } finally {
+        submitSpinner?.classList.add('hidden');
+      }
+    });
+  }
+
+  function initBlogDeleter() {
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (!isDev) return;
+
+    const deleteBackdrop = document.getElementById('blog-delete-backdrop');
+    if (!deleteBackdrop) return;
+
+    // Teleport delete backdrop to document.body so it is never clipped by parent overflow
+    if (deleteBackdrop.parentElement !== document.body) {
+      document.body.appendChild(deleteBackdrop);
+    }
+
+    const openBtn = document.getElementById('open-blog-delete-modal-btn');
+    const closeBtn = document.getElementById('blog-delete-close-btn');
+    const closeListBtn = document.getElementById('close-delete-list-btn');
+
+    const listView = document.getElementById('delete-list-view');
+    const confirmView = document.getElementById('delete-confirm-view');
+    const searchInput = document.getElementById('delete-search-input');
+    const itemsCount = document.getElementById('delete-items-count');
+    const articlesContainer = document.getElementById('delete-articles-container');
+
+    const confirmFilePath = document.getElementById('confirm-delete-filepath');
+    const confirmDetails = document.getElementById('confirm-delete-details');
+    const confirmStatus = document.getElementById('delete-confirm-status');
+    const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+    const executeDeleteBtn = document.getElementById('execute-delete-btn');
+    const deleteActionSpinner = document.getElementById('delete-action-spinner');
+    const deleteActionLabel = document.getElementById('delete-action-label');
+
+    let articles = [];
+    let articleToDelete = null;
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function openDeleteModal() {
+      deleteBackdrop.style.display = 'flex';
+      deleteBackdrop.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      showListView();
+      loadArticles();
+      setTimeout(() => {
+        if (searchInput) {
+          searchInput.value = '';
+          searchInput.focus();
+        }
+      }, 60);
+    }
+
+    function closeDeleteModal() {
+      deleteBackdrop.style.display = 'none';
+      deleteBackdrop.classList.add('hidden');
+      document.body.style.overflow = '';
+      articleToDelete = null;
+    }
+
+    function showListView() {
+      if (listView) listView.classList.remove('hidden');
+      if (confirmView) confirmView.classList.add('hidden');
+      if (confirmStatus) {
+        confirmStatus.classList.add('hidden');
+        confirmStatus.textContent = '';
+      }
+      if (executeDeleteBtn) executeDeleteBtn.disabled = false;
+      if (deleteActionSpinner) deleteActionSpinner.classList.add('hidden');
+      if (deleteActionLabel) deleteActionLabel.textContent = 'Yes, Delete Permanently';
+    }
+
+    function showConfirmView(article) {
+      articleToDelete = article;
+      if (listView) listView.classList.add('hidden');
+      if (confirmView) confirmView.classList.remove('hidden');
+      if (confirmStatus) {
+        confirmStatus.classList.add('hidden');
+        confirmStatus.textContent = '';
+      }
+      if (confirmFilePath) {
+        confirmFilePath.textContent = article.relPath;
+      }
+      if (confirmDetails) {
+        if (article.type === 'series') {
+          confirmDetails.textContent = `Series Track: "${article.seriesName}" · Episode #${article.episode} · Title: ${article.title || article.filename}${article.date ? ' · Date: ' + article.date : ''}`;
+        } else {
+          confirmDetails.textContent = `Standalone Article · Title: ${article.title || article.filename}${article.date ? ' · Date: ' + article.date : ''}`;
+        }
+      }
+      if (executeDeleteBtn) executeDeleteBtn.disabled = false;
+      if (deleteActionSpinner) deleteActionSpinner.classList.add('hidden');
+      if (deleteActionLabel) deleteActionLabel.textContent = 'Yes, Delete Permanently';
+      cancelDeleteBtn?.focus();
+    }
+
+    async function loadArticles() {
+      if (!articlesContainer) return;
+      articlesContainer.innerHTML = '<div class="p-8 text-center text-outline text-xs"><span class="animate-spin inline-block mr-2">⟳</span>Scanning repository blogs...</div>';
+      try {
+        const res = await fetch('/api/list-blogs');
+        if (!res.ok) throw new Error('Failed to load blogs list');
+        const data = await res.json();
+        articles = data.blogs || [];
+        renderArticles(searchInput ? searchInput.value : '');
+      } catch (err) {
+        articlesContainer.innerHTML = `<div class="p-4 text-center text-red-400 text-xs border border-red-500/30 rounded-[2px] bg-red-500/10">Failed to load articles: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function renderArticles(filterQuery = '') {
+      if (!articlesContainer) return;
+      const q = (filterQuery || '').trim().toLowerCase();
+
+      const filtered = articles.filter((b) => {
+        if (!q) return true;
+        return (
+          b.filename.toLowerCase().includes(q) ||
+          (b.title && b.title.toLowerCase().includes(q)) ||
+          (b.directory && b.directory.toLowerCase().includes(q)) ||
+          (b.seriesName && b.seriesName.toLowerCase().includes(q)) ||
+          (b.relPath && b.relPath.toLowerCase().includes(q))
+        );
+      });
+
+      if (itemsCount) {
+        itemsCount.textContent = `${filtered.length} of ${articles.length} files`;
+      }
+
+      if (filtered.length === 0) {
+        if (articles.length === 0) {
+          articlesContainer.innerHTML = `
+            <div class="p-8 text-center text-outline text-xs space-y-1">
+              <span class="text-xl block">📂</span>
+              <div class="font-semibold text-on-surface">No blog files found</div>
+              <div>There are no Markdown files in Blogs/standalone or Blogs/series.</div>
+            </div>
+          `;
+        } else {
+          articlesContainer.innerHTML = `
+            <div class="p-8 text-center text-outline text-xs space-y-1">
+              <span class="text-xl block">🔍</span>
+              <div class="font-semibold text-on-surface">No matching files found</div>
+              <div>No articles match "${escapeHtml(q)}".</div>
+            </div>
+          `;
+        }
+        return;
+      }
+
+      // Group articles by directory (e.g. Blogs/standalone, Blogs/series/test)
+      const groups = {};
+      filtered.forEach((blog) => {
+        const dir = blog.directory || 'Blogs';
+        if (!groups[dir]) groups[dir] = [];
+        groups[dir].push(blog);
+      });
+
+      // Sort directory keys so standalone comes first or alphabetical
+      const sortedDirs = Object.keys(groups).sort((a, b) => {
+        if (a === 'Blogs/standalone') return -1;
+        if (b === 'Blogs/standalone') return 1;
+        return a.localeCompare(b);
+      });
+
+      let html = '';
+      sortedDirs.forEach((dir) => {
+        const dirArticles = groups[dir];
+        html += `
+          <div class="border border-outline-variant/60 rounded-[2px] overflow-hidden bg-surface-container/20">
+            <div class="px-3 py-1.5 bg-surface-container/70 border-b border-outline-variant/50 flex items-center justify-between text-[11px]">
+              <div class="flex items-center gap-1.5 font-bold text-primary truncate">
+                <span class="text-xs select-none">📁</span>
+                <span class="font-mono">${escapeHtml(dir)}/</span>
+              </div>
+              <span class="text-[10px] text-outline font-mono">${dirArticles.length} ${dirArticles.length === 1 ? 'file' : 'files'}</span>
+            </div>
+            <div class="divide-y divide-outline-variant/30">
+        `;
+
+        dirArticles.forEach((blog) => {
+          const blogUrl = blog.url || (blog.slug ? `/blog/${blog.slug}` : `/blog/${blog.type === 'series' ? `series/${blog.seriesName}/` : 'standalone/'}${blog.filename.replace(/\.(md|mdx)$/i, '').toLowerCase()}`);
+          html += `
+            <div class="p-2.5 px-3 flex items-center justify-between gap-3 hover:bg-surface-container/40 transition-colors">
+              <div class="flex items-center gap-2.5 overflow-hidden min-w-0">
+                <span class="text-outline text-xs shrink-0 select-none">📄</span>
+                <div class="min-w-0 truncate">
+                  <div class="flex items-center gap-2">
+                    <span class="font-semibold text-on-surface font-mono truncate text-[12px]">${escapeHtml(blog.filename)}</span>
+                    ${blog.episode ? `<span class="px-1.5 py-0.2 rounded-[2px] bg-primary/10 text-primary text-[10px] font-mono shrink-0">Ep. ${blog.episode}</span>` : ''}
+                  </div>
+                  <div class="flex items-center gap-2 text-[10px] text-outline truncate pt-0.5">
+                    <span class="truncate">${escapeHtml(blog.title)}</span>
+                    ${blog.date ? `<span>·</span><span>${escapeHtml(blog.date)}</span>` : ''}
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <a
+                  href="${blogUrl}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="px-1.5 py-1 text-outline hover:text-primary transition-colors text-[11px] font-mono hover:underline cursor-pointer"
+                  title="Preview post in new tab"
+                >
+                  [view]
+                </a>
+                <button
+                  type="button"
+                  class="delete-single-blog-btn p-1.5 rounded-[2px] text-red-400 hover:text-red-100 hover:bg-red-600/30 border border-red-500/20 hover:border-red-500/60 transition-all cursor-pointer inline-flex items-center justify-center"
+                  title="Delete ${escapeHtml(blog.filename)}"
+                  data-relpath="${escapeHtml(blog.relPath)}"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 pointer-events-none">
+                    <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          `;
+        });
+
+        html += `
+            </div>
+          </div>
+        `;
+      });
+
+      articlesContainer.innerHTML = html;
+
+      // Attach click listeners to trash buttons
+      articlesContainer.querySelectorAll('.delete-single-blog-btn').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const targetRelPath = btn.getAttribute('data-relpath');
+          const targetArticle = articles.find((a) => a.relPath === targetRelPath);
+          if (targetArticle) {
+            showConfirmView(targetArticle);
+          }
+        });
+      });
+    }
+
+    // Search filter event
+    searchInput?.addEventListener('input', (e) => {
+      renderArticles(e.target.value);
+    });
+
+    // Execute delete action
+    executeDeleteBtn?.addEventListener('click', async () => {
+      if (!articleToDelete) return;
+
+      executeDeleteBtn.disabled = true;
+      deleteActionSpinner?.classList.remove('hidden');
+      if (deleteActionLabel) deleteActionLabel.textContent = 'Deleting file...';
+
+      if (confirmStatus) {
+        confirmStatus.classList.add('hidden');
+        confirmStatus.textContent = '';
+      }
+
+      try {
+        const response = await fetch('/api/delete-blog', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ relPath: articleToDelete.relPath }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          if (confirmStatus) {
+            confirmStatus.className = 'p-3 rounded-[2px] text-[12px] font-mono border bg-green-500/10 border-green-500/50 text-green-400';
+            confirmStatus.textContent = `✓ ${data.message}`;
+            confirmStatus.classList.remove('hidden');
+          }
+
+          // Remove from local cache
+          const deletedPath = articleToDelete.relPath;
+          articles = articles.filter((a) => a.relPath !== deletedPath);
+
+          // Synchronize global series metadata for upload modal
+          if (typeof window.__refreshSeriesDataGlobal === 'function') {
+            window.__refreshSeriesDataGlobal();
+          }
+
+          // After short pause, return to list view and refresh
+          setTimeout(() => {
+            showListView();
+            renderArticles(searchInput ? searchInput.value : '');
+          }, 1200);
+        } else {
+          if (confirmStatus) {
+            confirmStatus.className = 'p-3 rounded-[2px] text-[12px] font-mono border bg-red-500/10 border-red-500/50 text-red-400';
+            confirmStatus.textContent = `Error: ${data.error || 'Failed to delete file'}`;
+            confirmStatus.classList.remove('hidden');
+          }
+          executeDeleteBtn.disabled = false;
+          deleteActionSpinner?.classList.add('hidden');
+          if (deleteActionLabel) deleteActionLabel.textContent = 'Yes, Delete Permanently';
+        }
+      } catch (err) {
+        if (confirmStatus) {
+          confirmStatus.className = 'p-3 rounded-[2px] text-[12px] font-mono border bg-red-500/10 border-red-500/50 text-red-400';
+          confirmStatus.textContent = `Delete request failed: ${err.message}`;
+          confirmStatus.classList.remove('hidden');
+        }
+        executeDeleteBtn.disabled = false;
+        deleteActionSpinner?.classList.add('hidden');
+        if (deleteActionLabel) deleteActionLabel.textContent = 'Yes, Delete Permanently';
+      }
+    });
+
+    // Wire up open and close buttons
+    openBtn?.addEventListener('click', openDeleteModal);
+    closeBtn?.addEventListener('click', closeDeleteModal);
+    closeListBtn?.addEventListener('click', closeDeleteModal);
+    cancelDeleteBtn?.addEventListener('click', showListView);
+
+    deleteBackdrop?.addEventListener('click', (e) => {
+      if (e.target === deleteBackdrop) {
+        closeDeleteModal();
+      }
+    });
+  }
+
+  // Global keyboard shortcuts (ESC to close, Ctrl+U/u to upload, Ctrl+D/d to delete)
+  if (!window.__blogUploaderKeyHandlerRegistered) {
+    window.__blogUploaderKeyHandlerRegistered = true;
+    document.addEventListener('keydown', (e) => {
+      const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (!isDev) return;
+
+      const uploadBackdrop = document.getElementById('blog-upload-backdrop');
+      const isUploadOpen = uploadBackdrop && !uploadBackdrop.classList.contains('hidden') && uploadBackdrop.style.display !== 'none';
+
+      const deleteBackdrop = document.getElementById('blog-delete-backdrop');
+      const isDeleteOpen = deleteBackdrop && !deleteBackdrop.classList.contains('hidden') && deleteBackdrop.style.display !== 'none';
+
+      if (e.key === 'Escape') {
+        if (isDeleteOpen) {
+          const confirmView = document.getElementById('delete-confirm-view');
+          const isConfirmVisible = confirmView && !confirmView.classList.contains('hidden');
+          if (isConfirmVisible) {
+            document.getElementById('cancel-delete-btn')?.click();
+          } else {
+            document.getElementById('blog-delete-close-btn')?.click();
+          }
+          return;
+        }
+        if (isUploadOpen) {
+          uploadBackdrop.style.display = 'none';
+          uploadBackdrop.classList.add('hidden');
+          document.body.style.overflow = '';
+          return;
+        }
+      }
+
+      // Check if profile editor modal is active
+      const profileEditorModal = document.getElementById('profile-editor-modal');
+      const isEditorOpen = profileEditorModal && !profileEditorModal.classList.contains('hidden') && profileEditorModal.style.display !== 'none';
+      if (isEditorOpen || isUploadOpen || isDeleteOpen) return;
+
+      const isTyping = ['input', 'textarea', 'select'].includes(document.activeElement?.tagName?.toLowerCase());
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'u') {
+        e.preventDefault();
+        const openBtn = document.getElementById('open-blog-upload-modal-btn');
+        if (openBtn) openBtn.click();
+      } else if (e.key.toLowerCase() === 'u' && !isTyping) {
+        e.preventDefault();
+        const openBtn = document.getElementById('open-blog-upload-modal-btn');
+        if (openBtn) openBtn.click();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        const openDeleteBtn = document.getElementById('open-blog-delete-modal-btn');
+        if (openDeleteBtn) openDeleteBtn.click();
+      } else if (e.key.toLowerCase() === 'd' && !isTyping) {
+        e.preventDefault();
+        const openDeleteBtn = document.getElementById('open-blog-delete-modal-btn');
+        if (openDeleteBtn) openDeleteBtn.click();
+      }
+    });
+  }
+
+  // Initialize on initial page load and on Astro view transition page swaps
+  function initAll() {
+    initBlogUploader();
+    initBlogDeleter();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAll);
+  } else {
+    initAll();
+  }
+  document.addEventListener('astro:page-load', initAll);
+  document.addEventListener('astro:before-swap', () => {
+    document.body.style.overflow = '';
+    const uploadBackdrop = document.getElementById('blog-upload-backdrop');
+    if (uploadBackdrop) {
+      uploadBackdrop.remove();
+    }
+    const deleteBackdrop = document.getElementById('blog-delete-backdrop');
+    if (deleteBackdrop) {
+      deleteBackdrop.remove();
+    }
+  });
+</script>

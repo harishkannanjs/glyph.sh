@@ -9,13 +9,13 @@ const { seriesInfo } = Astro.props;
 ---
 
 <div class="my-6 p-3 bg-surface-container-low border border-outline-variant rounded-[2px] flex flex-wrap items-center justify-between gap-3 font-mono text-[12px]">
-  <div class="flex items-center gap-1.5 text-on-surface-variant">
-    <span class="text-primary font-bold"># Series:</span>
-    <span>Part {seriesInfo.currentPart} of {seriesInfo.totalParts} in</span>
-    <span class="text-on-surface font-medium">'{seriesInfo.name}'</span>
+  <div class="flex flex-wrap items-center gap-1.5 text-on-surface-variant min-w-0">
+    <span class="text-primary font-bold shrink-0"># Series:</span>
+    <span class="shrink-0">Part {seriesInfo.currentPart} of {seriesInfo.totalParts} in</span>
+    <span class="text-on-surface font-medium break-words">'{seriesInfo.name}'</span>
   </div>
 
-  <div class="flex items-center gap-1.5">
+  <div class="flex items-center gap-1.5 flex-wrap shrink-0">
     {seriesInfo.parts.map((part) => (
       part.isCurrent ? (
         <span

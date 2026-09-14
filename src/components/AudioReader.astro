@@ -1,0 +1,1046 @@
+---
+// AudioReader.astro: Medium-quality speech readout with seamless mid-playback speed adjustment, persistent controls, and in-page word highlighting
+---
+
+<div id="audio-reader-container" class="inline-flex items-center gap-1.5">
+  <!-- Persistent Main Button (Play / Pause / Resume) - NEVER disappears -->
+  <div class="relative group inline-flex">
+    <button
+      type="button"
+      id="audio-reader-main-btn"
+      class="flex items-center justify-center w-7 h-7 bg-surface-container border border-outline-variant hover:border-primary text-primary rounded-[2px] transition-colors cursor-pointer select-none"
+      title="Listen to article"
+      aria-label="Listen to article"
+    >
+      <!-- State 1: Play Icon (Idle) -->
+      <svg
+        id="audio-icon-play"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        class="w-3.5 h-3.5 text-primary"
+      >
+        <polygon points="6 3 20 12 6 21 6 3"></polygon>
+      </svg>
+
+      <!-- State 2: Pause Icon (Playing) -->
+      <svg
+        id="audio-icon-pause"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        class="w-3.5 h-3.5 text-primary hidden"
+      >
+        <rect x="6" y="4" width="4" height="16"></rect>
+        <rect x="14" y="4" width="4" height="16"></rect>
+      </svg>
+
+      <!-- State 3: Resume Icon (Paused) -->
+      <svg
+        id="audio-icon-resume"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        class="w-3.5 h-3.5 text-primary hidden"
+      >
+        <polygon points="6 3 20 12 6 21 6 3"></polygon>
+      </svg>
+    </button>
+
+    <!-- Main Button Tooltip -->
+    <span
+      id="audio-reader-main-tooltip"
+      class="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-surface-container-highest border border-outline-variant text-[10px] text-on-surface px-1.5 py-0.5 rounded-[2px] opacity-0 group-hover:opacity-100 transition-opacity z-30 font-mono select-none"
+    >
+      Listen to article
+    </span>
+  </div>
+
+  <!-- Extra Controls (Speed & Stop) - Visible ONLY when playing or paused -->
+  <div id="audio-reader-extra-controls" class="hidden items-center gap-1 font-mono">
+    <!-- Speed Cycle Button -->
+    <div class="relative group inline-flex">
+      <button
+        type="button"
+        id="audio-reader-speed-btn"
+        class="h-7 px-1.5 bg-surface-container border border-outline-variant hover:border-primary text-[10px] font-bold text-on-surface hover:text-primary rounded-[2px] transition-colors cursor-pointer select-none flex items-center justify-center"
+        aria-label="Playback speed"
+      >
+        <span id="audio-reader-speed-label">1x</span>
+      </button>
+      <span
+        class="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-surface-container-highest border border-outline-variant text-[10px] text-on-surface px-1.5 py-0.5 rounded-[2px] opacity-0 group-hover:opacity-100 transition-opacity z-30 font-mono select-none"
+      >
+        Speed (click to change)
+      </span>
+    </div>
+
+    <!-- Stop Reading Button -->
+    <div class="relative group inline-flex">
+      <button
+        type="button"
+        id="audio-reader-stop-btn"
+        class="flex items-center justify-center w-7 h-7 bg-surface-container border border-outline-variant hover:border-error text-on-surface-variant hover:text-error rounded-[2px] transition-colors cursor-pointer select-none"
+        title="Stop reading"
+        aria-label="Stop reading"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          class="w-2.5 h-2.5"
+        >
+          <rect x="4" y="4" width="16" height="16"></rect>
+        </svg>
+      </button>
+      <span
+        class="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-surface-container-highest border border-outline-variant text-[10px] text-on-surface px-1.5 py-0.5 rounded-[2px] opacity-0 group-hover:opacity-100 transition-opacity z-30 font-mono select-none"
+      >
+        Stop reading
+      </span>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Part-by-part (section) highlighter: Light Black (#121215) with light milk yellow left accent */
+  :global(.speech-active-block) {
+    position: relative !important;
+    border-left: 3px solid #fef08a !important;
+    padding-left: 0.85rem !important;
+    padding-right: 4.75rem !important;
+    background-color: #121215 !important;
+    color: #f3f4f6 !important;
+    border-radius: 4px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+    transition: background-color 0.12s ease-out, border-left-color 0.12s ease-out !important;
+  }
+
+  :global(html:not(.dark) .speech-active-block) {
+    background-color: #141417 !important;
+    color: #f9fafb !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  :global(html.reader-mode-active .speech-active-block) {
+    background-color: #14120f !important;
+    border-left-color: #fef08a !important;
+    color: #ded5c8 !important;
+  }
+
+  :global(html.reader-mode-active:not(.dark) .speech-active-block) {
+    background-color: #1c1916 !important;
+    border-left-color: #fef08a !important;
+    color: #fbf5eb !important;
+  }
+
+  :global(.speech-active-block a),
+  :global(.speech-active-block span:not(.speech-word-active)),
+  :global(.speech-active-block strong),
+  :global(.speech-active-block em),
+  :global(.speech-active-block code) {
+    color: inherit;
+  }
+
+  :global(.speech-skip-btn) {
+    position: absolute !important;
+    top: 0.35rem !important;
+    right: 0.5rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.25rem !important;
+    padding: 0.15rem 0.45rem !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    color: var(--on-surface-variant) !important;
+    background-color: var(--surface-container-high) !important;
+    border: 1px solid var(--outline-variant) !important;
+    border-radius: 2px !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    line-height: 1.3 !important;
+    z-index: 20 !important;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease !important;
+  }
+
+  :global(.speech-skip-btn:hover) {
+    color: #ca8a04 !important;
+    border-color: #fef08a !important;
+    background-color: var(--surface-container-highest) !important;
+  }
+
+  :global(.speech-skip-btn:active) {
+    transform: scale(0.95) !important;
+  }
+
+  :global(.speech-skip-text) {
+    font-size: 10px !important;
+    line-height: 1 !important;
+  }
+
+  :global(.speech-skip-icon) {
+    font-size: 10px !important;
+    line-height: 1 !important;
+  }
+
+  :global(.speech-word) {
+    display: inline;
+    border-radius: 2px;
+    transition: background-color 0.05s linear, color 0.05s linear;
+  }
+
+  /* Soft Light (Milk) Yellow Word-by-Word Highlighter */
+  :global(.speech-word-active) {
+    background-color: #fef08a !important;
+    color: #18181b !important;
+    font-weight: 700 !important;
+    box-shadow: 0 0 0 2px #fef08a !important;
+    border-radius: 2px !important;
+  }
+
+  /* Part Listen Button (Bottom Right of each content part) */
+  :global(.speech-part-block) {
+    position: relative !important;
+  }
+
+  :global(.part-listen-btn) {
+    position: absolute !important;
+    bottom: 0.25rem !important;
+    right: 0.5rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.28rem !important;
+    padding: 0.15rem 0.48rem !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    color: var(--on-surface-variant) !important;
+    background-color: var(--surface-container-high) !important;
+    border: 1px solid var(--outline-variant) !important;
+    border-radius: 2px !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    line-height: 1.3 !important;
+    z-index: 20 !important;
+    opacity: 0;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28) !important;
+    transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease !important;
+  }
+
+  /* Reveal button on hover of the part */
+  :global(.speech-part-block:hover > .part-listen-btn),
+  :global(.part-listen-btn:hover) {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  /* Always keep visible if this part is actively highlighted in listen mode */
+  :global(.speech-part-block.speech-active-block > .part-listen-btn) {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  :global(.part-listen-btn:hover) {
+    color: #fef08a !important;
+    border-color: #fef08a !important;
+    background-color: var(--surface-container-highest) !important;
+  }
+
+  :global(.part-listen-btn:active) {
+    transform: scale(0.95) !important;
+  }
+
+  :global(.part-listen-btn.is-playing) {
+    color: #fef08a !important;
+    border-color: #fef08a !important;
+    background-color: #121215 !important;
+  }
+
+  :global(.part-listen-icon) {
+    font-size: 9px !important;
+    line-height: 1 !important;
+    display: inline-block !important;
+  }
+
+  :global(.part-listen-text) {
+    font-size: 10px !important;
+    line-height: 1 !important;
+  }
+</style>
+
+<script is:inline>
+  (function () {
+    const SPEEDS = [1, 1.25, 1.5, 2, 0.75];
+    let speedIndex = 0;
+    let isPlaying = false;
+    let isPaused = false;
+    let isSinglePartMode = false;
+    let currentBlockIndex = 0;
+    let currentAbsoluteCharOffset = 0;
+    let currentWordIndex = 0;
+    let readableBlocks = [];
+    let currentBlock = null;
+    let naturalVoice = null;
+    let wordTimer = null;
+    let fallbackTimeout = null;
+    let keepAliveInterval = null;
+    let speechBoundarySupported = false;
+
+    function getSynth() {
+      return window.speechSynthesis;
+    }
+
+    function loadVoices() {
+      if (!('speechSynthesis' in window)) return;
+      const voices = getSynth().getVoices();
+      if (!voices || voices.length === 0) return;
+
+      const enVoices = voices.filter((v) => v.lang && v.lang.startsWith('en'));
+      naturalVoice =
+        enVoices.find((v) => /natural/i.test(v.name) && (/jenny/i.test(v.name) || /aria/i.test(v.name) || /guy/i.test(v.name) || /christopher/i.test(v.name))) ||
+        enVoices.find((v) => /natural/i.test(v.name)) ||
+        enVoices.find((v) => /google/i.test(v.name) && /us english/i.test(v.name)) ||
+        enVoices.find((v) => /google/i.test(v.name)) ||
+        enVoices.find((v) => /premium/i.test(v.name)) ||
+        enVoices.find((v) => v.lang === 'en-US' && !/desktop/i.test(v.name)) ||
+        enVoices.find((v) => v.lang === 'en-US') ||
+        enVoices[0] ||
+        voices[0];
+    }
+
+    if ('speechSynthesis' in window) {
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    function getReadableBlocks() {
+      const prose =
+        document.querySelector('article[data-pagefind-body] section.prose') ||
+        document.querySelector('article:not(#magnifier-article-clone) section.prose') ||
+        document.querySelector('article section.prose');
+      if (!prose) return [];
+
+      return Array.from(
+        prose.querySelectorAll('p, h1, h2, h3, h4, h5, h6, blockquote, ul > li, ol > li')
+      ).filter((el) => {
+        if (
+          el.closest('pre') ||
+          el.closest('code') ||
+          el.closest('.expressive-code') ||
+          el.closest('.katex') ||
+          el.closest('table')
+        ) {
+          return false;
+        }
+        // If a list item or blockquote contains child paragraphs, let the child paragraphs be the individual readable units
+        if (
+          (el.tagName === 'LI' || el.tagName === 'BLOCKQUOTE') &&
+          el.querySelector('p, blockquote')
+        ) {
+          return false;
+        }
+        return el.textContent && el.textContent.trim().length > 0;
+      });
+    }
+
+    function updatePartButtonsUI() {
+      const allBtns = document.querySelectorAll('.part-listen-btn');
+      allBtns.forEach((btn) => {
+        const block = btn.closest('.speech-part-block');
+        if (block && block === currentBlock && isPlaying && !isPaused) {
+          btn.classList.add('is-playing');
+          btn.innerHTML = '<span class="part-listen-icon">■</span><span class="part-listen-text">Stop</span>';
+          btn.title = 'Stop listening to this part';
+          btn.setAttribute('aria-label', 'Stop listening to this part');
+        } else {
+          btn.classList.remove('is-playing');
+          btn.innerHTML = '<span class="part-listen-icon">▶</span><span class="part-listen-text">Listen</span>';
+          btn.title = 'Listen to this part';
+          btn.setAttribute('aria-label', 'Listen to this part');
+        }
+      });
+    }
+
+    function initPartListenButtons() {
+      const prose =
+        document.querySelector('article[data-pagefind-body] section.prose') ||
+        document.querySelector('article:not(#magnifier-article-clone) section.prose') ||
+        document.querySelector('article section.prose');
+      if (!prose) return;
+
+      const blocks = getReadableBlocks();
+      blocks.forEach((block) => {
+        block.classList.add('speech-part-block');
+        let btn = block.querySelector('.part-listen-btn');
+        if (!btn) {
+          btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'part-listen-btn';
+          btn.title = 'Listen to this part';
+          btn.setAttribute('aria-label', 'Listen to this part');
+          btn.innerHTML = '<span class="part-listen-icon">▶</span><span class="part-listen-text">Listen</span>';
+          block.appendChild(btn);
+        }
+
+        // Direct click handler on the button element ensures reliable click execution across all cursor modes
+        btn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handlePartButtonClick(block);
+        };
+      });
+
+      if (!prose._partListenDelegated) {
+        prose._partListenDelegated = true;
+        prose.addEventListener('click', (e) => {
+          const btn = e.target.closest('.part-listen-btn');
+          if (!btn) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const block = btn.closest('.speech-part-block');
+          if (block) {
+            handlePartButtonClick(block);
+          }
+        });
+      }
+
+      updatePartButtonsUI();
+    }
+
+    function handlePartButtonClick(block) {
+      if (isPlaying && isSinglePartMode && currentBlock === block) {
+        stopReading();
+        return;
+      }
+
+      if (isPlaying) {
+        stopReading();
+      }
+
+      startSinglePartReading(block);
+    }
+
+    function startSinglePartReading(block) {
+      if (!('speechSynthesis' in window)) {
+        alert('Text-to-speech is not supported in this browser.');
+        return;
+      }
+
+      loadVoices();
+      readableBlocks = getReadableBlocks();
+      const blockIdx = readableBlocks.indexOf(block);
+      if (blockIdx === -1) return;
+
+      isPlaying = true;
+      isPaused = false;
+      isSinglePartMode = true;
+      currentBlockIndex = blockIdx;
+      currentAbsoluteCharOffset = 0;
+      currentWordIndex = 0;
+
+      updateControlsUI();
+      updatePartButtonsUI();
+
+      if (keepAliveInterval) clearInterval(keepAliveInterval);
+      keepAliveInterval = setInterval(() => {
+        if (window.speechSynthesis && getSynth().speaking && !getSynth().paused) {
+          getSynth().pause();
+          getSynth().resume();
+        }
+      }, 9000);
+
+      window.dispatchEvent(new CustomEvent('audioreader:change', { detail: { state: 'start', blockIndex: blockIdx } }));
+      speakFromOffset(blockIdx, 0, 0);
+    }
+
+    function updateControlsUI() {
+      const iconPlay = document.getElementById('audio-icon-play');
+      const iconPause = document.getElementById('audio-icon-pause');
+      const iconResume = document.getElementById('audio-icon-resume');
+      const tooltip = document.getElementById('audio-reader-main-tooltip');
+      const extraControls = document.getElementById('audio-reader-extra-controls');
+      const speedLabel = document.getElementById('audio-reader-speed-label');
+
+      if (speedLabel) {
+        speedLabel.textContent = `${SPEEDS[speedIndex]}x`;
+      }
+
+      if (!iconPlay || !iconPause || !iconResume) return;
+
+      // During single-part reading or when idle, the top bar remains completely idle and hidden
+      if (!isPlaying || isSinglePartMode) {
+        // Idle
+        iconPlay.classList.remove('hidden');
+        iconPause.classList.add('hidden');
+        iconResume.classList.add('hidden');
+        if (tooltip) tooltip.textContent = 'Listen to article';
+        extraControls?.classList.add('hidden');
+        extraControls?.classList.remove('inline-flex');
+      } else if (isPaused) {
+        // Paused in full article mode: show Resume icon
+        iconPlay.classList.add('hidden');
+        iconPause.classList.add('hidden');
+        iconResume.classList.remove('hidden');
+        if (tooltip) tooltip.textContent = 'Resume reading';
+        extraControls?.classList.remove('hidden');
+        extraControls?.classList.add('inline-flex');
+      } else {
+        // Playing in full article mode: show Pause icon and speed/stop extra controls
+        iconPlay.classList.add('hidden');
+        iconPause.classList.remove('hidden');
+        iconResume.classList.add('hidden');
+        if (tooltip) tooltip.textContent = 'Pause reading';
+        extraControls?.classList.remove('hidden');
+        extraControls?.classList.add('inline-flex');
+      }
+    }
+
+    // Tokenize leaf text nodes into span.speech-word while preserving full innerHTML structure
+    function prepareBlockForHighlighting(block) {
+      if (!block) return [];
+      if (block._wordSpans && block._origHtml !== undefined) {
+        return block._wordSpans;
+      }
+
+      block._origHtml = block.innerHTML;
+
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, null);
+      const textNodes = [];
+      let n;
+      while ((n = walker.nextNode())) {
+        // Exclude heading anchor links "#", skip buttons, or part listen buttons from being spoken
+        if (n.parentElement && n.parentElement.closest('.heading-anchor, .speech-skip-btn, .part-listen-btn')) {
+          continue;
+        }
+        if (n.textContent && n.textContent.length > 0) {
+          textNodes.push(n);
+        }
+      }
+
+      const wordSpans = [];
+
+      textNodes.forEach((textNode) => {
+        const parent = textNode.parentNode;
+        if (!parent || parent.classList?.contains('speech-word')) return;
+
+        const text = textNode.textContent;
+        const fragment = document.createDocumentFragment();
+        const regex = /(\S+|\s+)/g;
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+          const token = match[0];
+
+          if (/^\s+$/.test(token)) {
+            fragment.appendChild(document.createTextNode(token));
+          } else {
+            const span = document.createElement('span');
+            span.className = 'speech-word';
+            span.textContent = token;
+            fragment.appendChild(span);
+            wordSpans.push(span);
+          }
+        }
+        parent.replaceChild(fragment, textNode);
+      });
+
+      // Build continuous natural spoken text with single-space separators and exact offsets
+      let runningPos = 0;
+      const spokenWords = [];
+      for (let i = 0; i < wordSpans.length; i++) {
+        const span = wordSpans[i];
+        const wordText = span.textContent;
+        span._start = runningPos;
+        span._end = runningPos + wordText.length;
+        span._idx = i;
+        span.dataset.start = String(runningPos);
+        span.dataset.end = String(span._end);
+        span.dataset.wordIndex = String(i);
+        spokenWords.push(wordText);
+        runningPos += wordText.length + 1; // +1 for single clean space separator
+      }
+
+      block._wordSpans = wordSpans;
+      block._spokenText = spokenWords.join(' ');
+      return wordSpans;
+    }
+
+    function setActiveWord(block, targetSpan) {
+      if (!block || !targetSpan) return;
+      if (block._activeWordSpan === targetSpan) return;
+
+      if (block._activeWordSpan) {
+        block._activeWordSpan.classList.remove('speech-word-active');
+      }
+
+      targetSpan.classList.add('speech-word-active');
+      block._activeWordSpan = targetSpan;
+
+      // Update offsets for mid-playback speed adjustment or pause/resume
+      currentAbsoluteCharOffset = targetSpan._start !== undefined ? targetSpan._start : parseInt(targetSpan.dataset.start || '0', 10);
+      currentWordIndex = targetSpan._idx !== undefined ? targetSpan._idx : parseInt(targetSpan.dataset.wordIndex || '0', 10);
+    }
+
+    function highlightWordByCharIndex(block, charIndex) {
+      if (!block || !block._wordSpans || block._wordSpans.length === 0) return;
+
+      const spans = block._wordSpans;
+      const len = spans.length;
+      for (let i = 0; i < len; i++) {
+        const span = spans[i];
+        const start = span._start !== undefined ? span._start : parseInt(span.dataset.start || '0', 10);
+        const end = span._end !== undefined ? span._end : parseInt(span.dataset.end || '0', 10);
+        if (charIndex >= start && charIndex < end) {
+          setActiveWord(block, span);
+          return;
+        }
+      }
+
+      // If in whitespace, highlight closest upcoming span
+      for (let i = 0; i < len; i++) {
+        const span = spans[i];
+        const start = span._start !== undefined ? span._start : parseInt(span.dataset.start || '0', 10);
+        if (charIndex <= start) {
+          setActiveWord(block, span);
+          return;
+        }
+      }
+
+      // Default to last span
+      setActiveWord(block, spans[len - 1]);
+    }
+
+    function restoreBlock(block) {
+      if (block) {
+        if (block._origHtml !== undefined) {
+          block.innerHTML = block._origHtml;
+          delete block._origHtml;
+          delete block._wordSpans;
+          delete block._spokenText;
+          delete block._activeWordSpan;
+        }
+        block.classList.remove('speech-active-block');
+      }
+    }
+
+    function cleanAllBlocks() {
+      if (wordTimer) {
+        clearInterval(wordTimer);
+        wordTimer = null;
+      }
+      if (currentBlock) {
+        restoreBlock(currentBlock);
+        currentBlock = null;
+      }
+      readableBlocks.forEach((b) => restoreBlock(b));
+    }
+
+    function attachSkipButton(block) {
+      if (!block || block.querySelector('.speech-skip-btn')) return;
+
+      const skipBtn = document.createElement('button');
+      skipBtn.type = 'button';
+      skipBtn.className = 'speech-skip-btn';
+      skipBtn.title = 'Skip this section';
+      skipBtn.setAttribute('aria-label', 'Skip this section');
+      skipBtn.innerHTML = '<span class="speech-skip-text">Skip</span><span class="speech-skip-icon">⏭</span>';
+
+      skipBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        skipCurrentBlock();
+      };
+
+      block.appendChild(skipBtn);
+    }
+
+    function skipCurrentBlock() {
+      if (!isPlaying) return;
+
+      // Invalidate current utterance events to prevent race-condition triggering of onend/onerror
+      if (window._activeSpeechUtterance) {
+        window._activeSpeechUtterance.onend = null;
+        window._activeSpeechUtterance.onerror = null;
+        window._activeSpeechUtterance.onboundary = null;
+      }
+
+      if (fallbackTimeout) {
+        clearTimeout(fallbackTimeout);
+        fallbackTimeout = null;
+      }
+
+      if (wordTimer) {
+        clearInterval(wordTimer);
+        wordTimer = null;
+      }
+
+      if ('speechSynthesis' in window) {
+        getSynth().cancel();
+      }
+
+      if (currentBlock) {
+        restoreBlock(currentBlock);
+        currentBlock = null;
+      }
+
+      // If paused, resume playback for the next section
+      isPaused = false;
+      updateControlsUI();
+
+      const nextBlockIndex = currentBlockIndex + 1;
+      if (nextBlockIndex >= readableBlocks.length) {
+        stopReading();
+      } else {
+        speakFromOffset(nextBlockIndex, 0, 0);
+      }
+    }
+
+    // Reads from exact character and word offset within blockIndex (enables continuing seamlessly without restarting)
+    function speakFromOffset(blockIndex, startCharOffset = 0, startWordIndex = 0, isContinuation = false) {
+      if (!isPlaying || blockIndex >= readableBlocks.length) {
+        stopReading();
+        return;
+      }
+
+      currentBlockIndex = blockIndex;
+      currentAbsoluteCharOffset = startCharOffset;
+      currentWordIndex = startWordIndex;
+
+      if (currentBlock && currentBlock !== readableBlocks[blockIndex]) {
+        restoreBlock(currentBlock);
+      }
+
+      const block = readableBlocks[blockIndex];
+      currentBlock = block;
+      block.classList.add('speech-active-block');
+
+      // Scroll block into comfortable reading view on new block transition
+      if (startCharOffset === 0) {
+        const blockRect = block.getBoundingClientRect();
+        if (blockRect.top < 80 || blockRect.bottom > window.innerHeight - 80) {
+          block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+
+      const spans = prepareBlockForHighlighting(block);
+
+      // Attach the skip option at the rightest end of the active section box (only in full article mode)
+      if (!isSinglePartMode) {
+        attachSkipButton(block);
+      }
+      updatePartButtonsUI();
+
+      window.dispatchEvent(new CustomEvent('audioreader:change', { detail: { state: 'block', blockIndex } }));
+
+      const fullText = block._spokenText || '';
+      if (!fullText.trim()) {
+        restoreBlock(block);
+        if (isSinglePartMode) {
+          stopReading();
+          return;
+        }
+        speakFromOffset(blockIndex + 1, 0, 0, isContinuation);
+        return;
+      }
+
+      // Extract only the remaining text from current position onwards
+      const startChar = startWordIndex > 0 && spans.length > startWordIndex ? spans[startWordIndex]._start : 0;
+      const remainingText = startChar > 0 ? fullText.slice(startChar) : fullText;
+      if (!remainingText.trim()) {
+        restoreBlock(block);
+        if (isSinglePartMode) {
+          stopReading();
+          return;
+        }
+        speakFromOffset(blockIndex + 1, 0, 0, isContinuation);
+        return;
+      }
+
+      // Only highlight immediately if resuming from a specific paused word mid-block
+      if (startWordIndex > 0 && spans.length > startWordIndex) {
+        setActiveWord(block, spans[startWordIndex]);
+      }
+
+      if (!isContinuation && 'speechSynthesis' in window) {
+        if (getSynth().speaking || getSynth().pending) {
+          getSynth().cancel();
+        }
+      }
+
+      const utterance = new SpeechSynthesisUtterance(remainingText);
+      window._activeSpeechUtterance = utterance; // Keep global reference to prevent Chrome GC bug
+      if (naturalVoice) utterance.voice = naturalVoice;
+      utterance.rate = SPEEDS[speedIndex];
+      utterance.pitch = 1.0;
+      utterance.lang = 'en-US';
+
+      // Ensure block is black and first word is primed on audio acoustic onset
+      utterance.onstart = () => {
+        if (!isPlaying || isPaused) return;
+        block.classList.add('speech-active-block');
+        if (!block._activeWordSpan && spans.length > startWordIndex) {
+          setActiveWord(block, spans[startWordIndex]);
+        }
+        updatePartButtonsUI();
+      };
+
+      let boundaryEventFired = false;
+
+      // On boundary: calculate exact absolute offset in the block's clean spokenText
+      utterance.onboundary = (event) => {
+        if (!isPlaying || isPaused) return;
+        if (event.name === 'word') {
+          boundaryEventFired = true;
+          speechBoundarySupported = true;
+          if (fallbackTimeout) {
+            clearTimeout(fallbackTimeout);
+            fallbackTimeout = null;
+          }
+          if (wordTimer) {
+            clearInterval(wordTimer);
+            wordTimer = null;
+          }
+          const charInBlock = startChar + event.charIndex;
+          highlightWordByCharIndex(block, charInBlock);
+        }
+      };
+
+      // Clear any prior timers
+      if (wordTimer) {
+        clearInterval(wordTimer);
+        wordTimer = null;
+      }
+      if (fallbackTimeout) {
+        clearTimeout(fallbackTimeout);
+        fallbackTimeout = null;
+      }
+
+      // Fallback: ONLY scheduled if boundary events are completely unsupported by this engine
+      if (!speechBoundarySupported) {
+        fallbackTimeout = setTimeout(() => {
+          if (speechBoundarySupported || boundaryEventFired || !isPlaying || isPaused) return;
+
+          if (getSynth().speaking && spans.length > 0) {
+            let timerIdx = startWordIndex;
+            const remainingWordsCount = Math.max(1, spans.length - startWordIndex);
+            const estDurationMs = (remainingWordsCount / ((150 * SPEEDS[speedIndex]) / 60)) * 1000;
+            const intervalMs = Math.max(120, estDurationMs / remainingWordsCount);
+
+            wordTimer = setInterval(() => {
+              if (!isPlaying || isPaused || boundaryEventFired || speechBoundarySupported) {
+                if (wordTimer) clearInterval(wordTimer);
+                wordTimer = null;
+                return;
+              }
+              if (timerIdx < spans.length) {
+                setActiveWord(block, spans[timerIdx++]);
+              } else {
+                if (wordTimer) clearInterval(wordTimer);
+                wordTimer = null;
+              }
+            }, intervalMs);
+          }
+        }, 2500);
+      }
+
+      utterance.onend = () => {
+        if (fallbackTimeout) {
+          clearTimeout(fallbackTimeout);
+          fallbackTimeout = null;
+        }
+        if (wordTimer) {
+          clearInterval(wordTimer);
+          wordTimer = null;
+        }
+        if (isPlaying && !isPaused) {
+          restoreBlock(block);
+
+          if (isSinglePartMode) {
+            // Finished reading this specific part -> stop immediately
+            stopReading();
+            return;
+          }
+
+          // Sequential full blog reading: proceed to next block
+          speakFromOffset(blockIndex + 1, 0, 0, true);
+        }
+      };
+
+      utterance.onerror = (e) => {
+        if (fallbackTimeout) {
+          clearTimeout(fallbackTimeout);
+          fallbackTimeout = null;
+        }
+        if (wordTimer) {
+          clearInterval(wordTimer);
+          wordTimer = null;
+        }
+        if (e.error !== 'canceled' && e.error !== 'interrupted') {
+          console.warn('SpeechSynthesis error:', e);
+          if (isPlaying && !isPaused) {
+            restoreBlock(block);
+            if (isSinglePartMode) {
+              stopReading();
+              return;
+            }
+            speakFromOffset(blockIndex + 1, 0, 0, true);
+          }
+        }
+      };
+
+      if (isContinuation) {
+        // Natural continuation from preceding block: audio pipe is warm, play immediately with 0ms gap
+        if (isPlaying && !isPaused) {
+          getSynth().speak(utterance);
+        }
+      } else {
+        // User-initiated action (start/skip/seek): allow clean audio device reset
+        setTimeout(() => {
+          if (isPlaying && !isPaused) {
+            getSynth().speak(utterance);
+          }
+        }, 20);
+      }
+    }
+
+    function startReading() {
+      if (!('speechSynthesis' in window)) {
+        alert('Text-to-speech is not supported in this browser.');
+        return;
+      }
+
+      loadVoices();
+
+      readableBlocks = getReadableBlocks();
+      if (readableBlocks.length === 0) return;
+
+      isPlaying = true;
+      isPaused = false;
+      isSinglePartMode = false;
+      currentBlockIndex = 0;
+      currentAbsoluteCharOffset = 0;
+      currentWordIndex = 0;
+      updateControlsUI();
+      updatePartButtonsUI();
+
+      // Chrome keep-alive interval to prevent 15-second speech cutoff
+      if (keepAliveInterval) clearInterval(keepAliveInterval);
+      keepAliveInterval = setInterval(() => {
+        if (window.speechSynthesis && getSynth().speaking && !getSynth().paused) {
+          getSynth().pause();
+          getSynth().resume();
+        }
+      }, 9000);
+
+      window.dispatchEvent(new CustomEvent('audioreader:change', { detail: { state: 'start' } }));
+      speakFromOffset(0, 0, 0);
+    }
+
+    function togglePauseResume() {
+      if (!isPlaying || isSinglePartMode) {
+        if (isSinglePartMode) {
+          stopReading();
+        }
+        startReading();
+        return;
+      }
+
+      if (isPaused) {
+        // Resuming: continue speaking from exact paused word/offset
+        isPaused = false;
+        updateControlsUI();
+        speakFromOffset(currentBlockIndex, currentAbsoluteCharOffset, currentWordIndex);
+      } else {
+        // Pausing: stop audio immediately but retain current word highlighted in place
+        isPaused = true;
+        if (fallbackTimeout) {
+          clearTimeout(fallbackTimeout);
+          fallbackTimeout = null;
+        }
+        if (wordTimer) {
+          clearInterval(wordTimer);
+          wordTimer = null;
+        }
+        if ('speechSynthesis' in window) {
+          getSynth().cancel();
+        }
+        updateControlsUI();
+      }
+    }
+
+    function stopReading() {
+      isPlaying = false;
+      isPaused = false;
+      isSinglePartMode = false;
+      currentBlockIndex = 0;
+      currentAbsoluteCharOffset = 0;
+      if (fallbackTimeout) {
+        clearTimeout(fallbackTimeout);
+        fallbackTimeout = null;
+      }
+      if (window._activeSpeechUtterance) {
+        window._activeSpeechUtterance.onend = null;
+        window._activeSpeechUtterance.onerror = null;
+        window._activeSpeechUtterance.onboundary = null;
+        window._activeSpeechUtterance = null;
+      }
+
+      if (keepAliveInterval) {
+        clearInterval(keepAliveInterval);
+        keepAliveInterval = null;
+      }
+
+      if ('speechSynthesis' in window) {
+        getSynth().cancel();
+      }
+
+      cleanAllBlocks();
+      updateControlsUI();
+      updatePartButtonsUI();
+      window.dispatchEvent(new CustomEvent('audioreader:change', { detail: { state: 'stop' } }));
+    }
+
+    // Alters speed mid-playback and continues speaking from the CURRENT word without restarting from first
+    function cycleSpeed() {
+      speedIndex = (speedIndex + 1) % SPEEDS.length;
+      updateControlsUI();
+
+      if (isPlaying) {
+        if (!isPaused) {
+          // Seamlessly re-speech from the CURRENT word at the new speed
+          speakFromOffset(currentBlockIndex, currentAbsoluteCharOffset, currentWordIndex);
+        }
+      }
+    }
+
+    function initAudioReader() {
+      const mainBtn = document.getElementById('audio-reader-main-btn');
+      const speedBtn = document.getElementById('audio-reader-speed-btn');
+      const stopBtn = document.getElementById('audio-reader-stop-btn');
+
+      if (mainBtn) mainBtn.onclick = togglePauseResume;
+      if (speedBtn) speedBtn.onclick = cycleSpeed;
+      if (stopBtn) stopBtn.onclick = stopReading;
+
+      initPartListenButtons();
+      updateControlsUI();
+    }
+
+    // Clean up on page navigation
+    document.addEventListener('astro:before-swap', stopReading);
+    window.addEventListener('pagehide', stopReading);
+    document.addEventListener('astro:after-swap', () => {
+      initPartListenButtons();
+    });
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initAudioReader);
+    } else {
+      initAudioReader();
+    }
+    document.addEventListener('astro:page-load', initAudioReader);
+  })();
+</script>

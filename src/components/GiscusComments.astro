@@ -16,21 +16,21 @@ const isConfigured = Boolean(
   giscusConfig?.categoryId
 );
 
-// Derive clean GitHub repository and discussions link
-const repoUrl = siteConfig.githubUrl ? `${siteConfig.githubUrl}/blog` : `https://github.com/harishkannanjs/blog`;
-const discussionsUrl = `${repoUrl}/discussions`;
-const topicDiscussionUrl = postTitle
-  ? `${discussionsUrl}/new?category=general&title=${encodeURIComponent(`[Discussion] ${postTitle}`)}`
+// Derive clean GitHub repository and discussions link if user has configured githubUrl or giscus.repo
+const repoPath = giscusConfig?.repo || (siteConfig.githubUrl ? siteConfig.githubUrl.replace(/^https?:\/\/github\.com\//, '') : '');
+const discussionsUrl = repoPath ? `https://github.com/${repoPath}/discussions` : (siteConfig.githubUrl ? `${siteConfig.githubUrl}` : '');
+const topicDiscussionUrl = postTitle && discussionsUrl
+  ? `${discussionsUrl}/new?category=${encodeURIComponent(giscusConfig?.category || 'general')}&title=${encodeURIComponent(`[Discussion] ${postTitle}`)}`
   : discussionsUrl;
 ---
 
-<section class="mt-12 pt-8 border-t border-outline-variant font-mono">
+<section class="mt-12 pt-8 border-t border-outline-variant font-mono" id="comments">
   <div class="flex items-center justify-between pb-4 mb-4 border-b border-outline-variant/60 text-[12px] text-outline">
     <div class="flex items-center gap-2 uppercase tracking-wider">
       <span class="text-primary font-bold">&gt;</span>
       <span>Discussions &amp; Peer Review</span>
     </div>
-    <span class="text-on-surface-variant text-[11px]">hosted in github repository</span>
+    <span class="text-on-surface-variant text-[11px]">powered by giscus (github discussions)</span>
   </div>
 
   {isConfigured ? (
@@ -42,30 +42,32 @@ const topicDiscussionUrl = postTitle
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2 text-primary font-semibold">
           <span class="font-bold">&gt;</span>
-          <span class="text-on-surface">Community Discussions (GitHub Discussions)</span>
+          <span class="text-on-surface">Discussions (GitHub Discussions)</span>
         </div>
-        <span class="text-[10px] text-primary border border-primary/30 px-1.5 py-0.5 rounded-[2px]">zero-risk</span>
+        <span class="text-[10px] text-primary border border-primary/30 px-1.5 py-0.5 rounded-[2px]">zero-server</span>
       </div>
 
       <p class="text-on-surface-variant leading-relaxed text-[12px]">
-        Comments and review discussions are stored safely inside your GitHub repository under the <strong>Discussions</strong> tab.
-        Visitors authenticate with their own GitHub accounts, giving you spam protection, markdown code formatting, and moderation without granting any write access to your codebase.
+        Comments and discussions are stored safely directly inside your GitHub repository under the <strong>Discussions</strong> tab.
+        Visitors can comment using their GitHub accounts with full markdown, code formatting, and emoji reactions.
       </p>
 
-      <div class="flex flex-wrap items-center gap-3 pt-2">
-        <a
-          href={topicDiscussionUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="px-3 py-1.5 bg-surface-container border border-outline-variant hover:border-primary text-primary hover:underline text-[11px] rounded-[2px] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
-        >
-          <span>Open GitHub Discussions</span>
-          <span>↗</span>
-        </a>
-      </div>
+      {topicDiscussionUrl ? (
+        <div class="flex flex-wrap items-center gap-3 pt-2">
+          <a
+            href={topicDiscussionUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="px-3 py-1.5 bg-surface-container border border-outline-variant hover:border-primary text-primary hover:underline text-[11px] rounded-[2px] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <span>Open GitHub Discussions</span>
+            <span>↗</span>
+          </a>
+        </div>
+      ) : null}
 
-      <div class="pt-2 border-t border-outline-variant/60 text-[11px] text-outline leading-relaxed">
-        <span># To embed comments directly on this page: enable Discussions in your GitHub repository settings, install the free <a href="https://giscus.app" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Giscus GitHub App</a>, and paste your repoId and categoryId into <code class="text-primary">profile.json</code>.</span>
+      <div class="pt-2 border-t border-outline-variant/60 text-[11px] text-outline leading-relaxed break-words">
+        <span># To embed comments directly on this page: enable Discussions on your GitHub repository, visit <a href="https://giscus.app" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">giscus.app ↗</a> to obtain your repoId and categoryId, then configure them in <code class="text-primary">profile.json</code> or via the localhost Profile editor.</span>
       </div>
     </div>
   )}

@@ -26,36 +26,56 @@ export async function getStaticPaths() {
     const prevPost = index < posts.length - 1 ? posts[index + 1] : null;
     const nextPost = index > 0 ? posts[index - 1] : null;
 
+    const addRoute = (candidate?: string | null) => {
+      if (!candidate) return;
+      const normalized = candidate.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+      if (!normalized) return;
+
+      if (!registered.has(normalized)) {
+        registered.add(normalized);
+        paths.push({
+          params: { slug: normalized },
+          props: { post, allPosts: posts, prevPost, nextPost },
+        });
+      }
+
+      const lower = normalized.toLowerCase();
+      if (!registered.has(lower)) {
+        registered.add(lower);
+        paths.push({
+          params: { slug: lower },
+          props: { post, allPosts: posts, prevPost, nextPost },
+        });
+      }
+    };
+
     const fullSlug = post.id.replace(/\.(md|mdx)$/, '');
 
-    // 1. Primary slug (e.g. series/windows-internals-exploitation/01-anticheat-dr7-hooks)
-    if (!registered.has(fullSlug)) {
-      registered.add(fullSlug);
-      paths.push({
-        params: { slug: fullSlug },
-        props: { post, allPosts: posts, prevPost, nextPost },
-      });
-    }
+    // 1. Primary slug (e.g. standalone/clipt-readme, series/windows-internals-exploitation/01-anticheat-dr7-hooks)
+    addRoute(fullSlug);
 
-    // 2. Leaf slug alias (e.g. 01-anticheat-dr7-hooks, coppelia-sim-rust)
+    // 2. Leaf slug alias (e.g. 01-anticheat-dr7-hooks, coppelia-sim-rust, clipt-readme)
     const parts = fullSlug.split('/');
     const leaf = parts[parts.length - 1];
-    if (!registered.has(leaf)) {
-      registered.add(leaf);
-      paths.push({
-        params: { slug: leaf },
-        props: { post, allPosts: posts, prevPost, nextPost },
-      });
-    }
+    addRoute(leaf);
 
     // 3. Clean slug without numeric prefix (e.g. anticheat-dr7-hooks)
     const cleanLeaf = leaf.replace(/^(?:part[-_]?)?\d+[-_]/i, '');
-    if (cleanLeaf && !registered.has(cleanLeaf)) {
-      registered.add(cleanLeaf);
-      paths.push({
-        params: { slug: cleanLeaf },
-        props: { post, allPosts: posts, prevPost, nextPost },
-      });
+    if (cleanLeaf) {
+      addRoute(cleanLeaf);
+    }
+
+    // 4. Raw file path aliases (e.g. standalone/clipt-README, clipt-README)
+    if (post.filePath) {
+      const rawRel = post.filePath
+        .replace(/\\/g, '/')
+        .replace(/^(?:.*\/)?blogs\//i, '')
+        .replace(/\.(md|mdx)$/i, '');
+      addRoute(rawRel);
+      const rawLeaf = rawRel.split('/').pop();
+      if (rawLeaf) {
+        addRoute(rawLeaf);
+      }
     }
   });
 

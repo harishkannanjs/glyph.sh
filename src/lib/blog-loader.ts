@@ -93,14 +93,28 @@ export function enhanceBlogData(
   const normalizedPath = filePath.replace(/\\/g, '/');
   const normalizedId = id.replace(/\\/g, '/');
 
-  const isSeries = normalizedId.startsWith('series/') || normalizedPath.includes('/Blogs/series/');
-  const isStandalone = normalizedId.startsWith('standalone/') || normalizedPath.includes('/Blogs/standalone/');
+  const isSeries = normalizedId.toLowerCase().startsWith('series/') || /\/blogs\/series\//i.test(normalizedPath);
+  const isStandalone = normalizedId.toLowerCase().startsWith('standalone/') || /\/blogs\/standalone\//i.test(normalizedPath);
 
   const leafFilename = path.basename(filePath);
 
-  // Dynamic Title: frontmatter title takes priority, otherwise derived from filename
+  // Read file content once for metadata extraction & word count
+  let contentWithoutFrontmatter = '';
+  try {
+    if (filePath && fs.existsSync(filePath)) {
+      const rawFile = fs.readFileSync(filePath, 'utf-8');
+      contentWithoutFrontmatter = rawFile.replace(/^---[\s\S]*?---/, '');
+    }
+  } catch {}
+
+  // Dynamic Title: frontmatter title takes priority, then leading markdown H1, then filename
   if (!data.title || typeof data.title !== 'string' || data.title.trim() === '') {
-    data.title = formatTitleFromSlug(leafFilename);
+    const h1Match = contentWithoutFrontmatter.match(/^#\s+(.+)$/m);
+    if (h1Match && h1Match[1].trim()) {
+      data.title = h1Match[1].trim();
+    } else {
+      data.title = formatTitleFromSlug(leafFilename);
+    }
   }
 
   if (isSeries) {
@@ -132,7 +146,19 @@ export function enhanceBlogData(
 
     const totalSiblings = siblingFiles.length > 0 ? siblingFiles.length : 1;
 
-    // Series Part Number
+    // Series Part Number: Check frontmatter, episode tags, filename prefix, or file index
+    if (data.seriesPart === undefined || data.seriesPart === null) {
+      if (Array.isArray(data.tags)) {
+        const epTag = data.tags.find((t: any) => typeof t === 'string' && /^episode-\d+$/i.test(t));
+        if (epTag) {
+          const parsed = parseInt(epTag.replace(/^episode-/i, ''), 10);
+          if (!isNaN(parsed) && parsed > 0) {
+            data.seriesPart = parsed;
+          }
+        }
+      }
+    }
+
     if (data.seriesPart === undefined || data.seriesPart === null) {
       const parsedPart = extractPartNumber(leafFilename);
       if (parsedPart !== null) {
@@ -143,36 +169,68 @@ export function enhanceBlogData(
       }
     }
 
-    // Series Total: strictly derived from actual files in the series folder
-    data.seriesTotal = Math.max(totalSiblings, data.seriesPart || 1);
+    // Ensure episode tag is present in data.tags
+    if (data.seriesPart !== undefined && data.seriesPart !== null) {
+      const epTag = `episode-${data.seriesPart}`;
+      if (Array.isArray(data.tags)) {
+        if (!data.tags.includes(epTag)) {
+          data.tags.push(epTag);
+        }
+      } else {
+        data.tags = [epTag];
+      }
+    }
+
+    // Determine max part and max seriesTotal across all files in this series folder
+    let maxSiblingPart = totalSiblings;
+    let maxExplicitTotal = 0;
+    for (const sib of siblingFiles) {
+      try {
+        const sibPath = path.join(seriesDir, sib);
+        const rawContent = fs.readFileSync(sibPath, 'utf-8');
+        const match = rawContent.match(/seriesPart:\s*(\d+)/i) || rawContent.match(/episode-(\d+)/i);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxSiblingPart) maxSiblingPart = num;
+        }
+        const totalMatch = rawContent.match(/seriesTotal:\s*(\d+)/i);
+        if (totalMatch) {
+          const tNum = parseInt(totalMatch[1], 10);
+          if (!isNaN(tNum) && tNum > maxExplicitTotal) maxExplicitTotal = tNum;
+        }
+      } catch {}
+    }
+
+    // Series Total: respects explicit user specification, or highest known episode count
+    const explicitTotal = (typeof data.seriesTotal === 'number' && data.seriesTotal > 0) ? data.seriesTotal : maxExplicitTotal;
+    data.seriesTotal = Math.max(explicitTotal || 0, totalSiblings, maxSiblingPart, data.seriesPart || 1);
   } else if (isStandalone) {
     // Standalone writeup - ensure no dangling series fields so schema refinement passes
     delete data.series;
     delete data.seriesPart;
     delete data.seriesTotal;
   } else {
-    // Other root posts - treat as standalone
-    delete data.series;
-    delete data.seriesPart;
-    delete data.seriesTotal;
+    // Other root posts - if series explicitly specified in frontmatter, ensure part & total exist
+    if (data.series) {
+      data.seriesPart = typeof data.seriesPart === 'number' && data.seriesPart > 0 ? data.seriesPart : 1;
+      data.seriesTotal = typeof data.seriesTotal === 'number' && data.seriesTotal >= data.seriesPart ? data.seriesTotal : Math.max(data.seriesPart, 1);
+    } else {
+      delete data.series;
+      delete data.seriesPart;
+      delete data.seriesTotal;
+    }
   }
 
   // Exact word count calculated directly from actual file content (no guesswork)
   if (data.words === undefined) {
     try {
-      if (filePath && fs.existsSync(filePath)) {
-        const fileContent = fs.readFileSync(filePath, 'utf-8');
-        const contentWithoutFrontmatter = fileContent.replace(/^---[\s\S]*?---/, '');
-        const wordCount = contentWithoutFrontmatter
-          .replace(/<[^>]*>/g, '')
-          .replace(/[#*`~_\[\]()]/g, '')
-          .trim()
-          .split(/\s+/)
-          .filter(Boolean).length;
-        data.words = wordCount;
-      } else {
-        data.words = 0;
-      }
+      const wordCount = contentWithoutFrontmatter
+        .replace(/<[^>]*>/g, '')
+        .replace(/[#*`~_\[\]()]/g, '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean).length;
+      data.words = wordCount;
     } catch {
       data.words = 0;
     }
@@ -180,7 +238,15 @@ export function enhanceBlogData(
 
   // Description fallback
   if (!data.description || typeof data.description !== 'string' || data.description.trim() === '') {
-    data.description = `Research notes and technical writeup on ${data.title}.`;
+    const paragraphs = contentWithoutFrontmatter
+      .split(/\n\s*\n/)
+      .map((p) => p.replace(/<[^>]*>/g, '').replace(/[#*`~_\[\]()]/g, '').trim())
+      .filter((p) => p.length > 20 && !p.startsWith('#'));
+    if (paragraphs.length > 0) {
+      data.description = paragraphs[0].slice(0, 160).trim() + (paragraphs[0].length > 160 ? '...' : '');
+    } else {
+      data.description = `Notes and article on ${data.title}.`;
+    }
   }
 
   // Publication date fallback
@@ -204,9 +270,9 @@ export function enhanceBlogData(
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
-      data.tags = [tagSlug || 'series', 'research'];
+      data.tags = [tagSlug || 'series'];
     } else {
-      data.tags = ['research', 'security'];
+      data.tags = ['general'];
     }
   }
 
@@ -221,7 +287,12 @@ export function enhanceBlogData(
  * and dynamically intercepts `parseData` to enrich entries.
  */
 export function createBlogLoader() {
-  const baseLoader = glob({ pattern: '**/*.{md,mdx}', base: './Blogs' });
+  // Support both ./Blogs and ./blogs casing across Windows and Linux environments
+  let blogsBase = './Blogs';
+  if (!fs.existsSync(path.resolve(process.cwd(), 'Blogs')) && fs.existsSync(path.resolve(process.cwd(), 'blogs'))) {
+    blogsBase = './blogs';
+  }
+  const baseLoader = glob({ pattern: '**/*.{md,mdx}', base: blogsBase });
 
   return {
     name: 'dynamic-blogs-root-loader',
@@ -236,7 +307,22 @@ export function createBlogLoader() {
         });
       };
 
-      return baseLoader.load(context);
+      const result = await baseLoader.load(context);
+
+      // Clean up any stale entries in store whose underlying files no longer exist
+      if (context.store) {
+        for (const key of Array.from(context.store.keys())) {
+          const entry = context.store.get(key);
+          if (entry?.filePath) {
+            const absPath = path.resolve(process.cwd(), entry.filePath);
+            if (!fs.existsSync(absPath)) {
+              context.store.delete(key);
+            }
+          }
+        }
+      }
+
+      return result;
     },
   };
 }

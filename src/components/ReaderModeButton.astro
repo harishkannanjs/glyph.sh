@@ -1,0 +1,207 @@
+---
+// ReaderModeButton.astro: Eye-Comfort / Reader Mode toggle to reduce high-energy blue rays, minimize glare, and provide distraction-free reading
+---
+
+<div class="relative group inline-flex" id="reader-mode-container">
+  <button
+    type="button"
+    id="reader-mode-btn"
+    class="flex items-center justify-center w-7 h-7 bg-surface-container border border-outline-variant hover:border-primary text-on-surface-variant hover:text-primary rounded-[2px] transition-colors cursor-pointer select-none"
+    title="Toggle Reader's Mode (Eye Comfort) [Alt+R]"
+    aria-label="Toggle Reader's Mode (Eye Comfort)"
+    aria-pressed="false"
+  >
+    <!-- Default Eye Outline SVG (Normal Mode) -->
+    <svg
+      id="reader-icon-default"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="w-3.5 h-3.5 transition-transform group-hover:scale-105"
+    >
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+      <circle cx="12" cy="12" r="3"></circle>
+    </svg>
+
+    <!-- Active Eye SVG (Warm Amber Illuminated Iris) -->
+    <svg
+      id="reader-icon-active"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      class="w-3.5 h-3.5 text-amber-500 hidden"
+    >
+      <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"></path>
+    </svg>
+  </button>
+
+  <!-- Hover Tooltip -->
+  <span
+    id="reader-mode-tooltip"
+    class="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-surface-container-highest border border-outline-variant text-[10px] text-on-surface px-1.5 py-0.5 rounded-[2px] opacity-0 group-hover:opacity-100 transition-opacity z-30 font-mono select-none"
+  >
+    Eye Comfort Mode [Alt+R]
+  </span>
+</div>
+
+<!-- Floating Exit Bar (Only visible when Reader Mode is Active) -->
+<div
+  id="reader-mode-floating-bar"
+  class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 items-center gap-3 px-3 py-1.5 bg-surface-container-high/95 border border-primary/40 rounded-[2px] font-mono text-[11px] backdrop-blur-md transition-all shadow-lg"
+>
+  <div class="flex items-center gap-1.5 text-primary">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      class="w-3.5 h-3.5"
+    >
+      <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"></path>
+    </svg>
+    <span class="font-bold">Eye Comfort Active</span>
+    <span class="text-[10px] text-outline hidden sm:inline">[Blue Light Attenuation]</span>
+  </div>
+  <span class="text-outline-variant">·</span>
+  <button
+    type="button"
+    id="reader-mode-exit-btn"
+    class="px-2 py-0.5 bg-surface-container border border-outline-variant hover:border-primary text-on-surface hover:text-primary rounded-[2px] cursor-pointer transition-colors text-[10px] font-bold"
+  >
+    Exit [Esc]
+  </button>
+</div>
+
+<script is:inline>
+  (function () {
+    const STORAGE_KEY = 'blog-reader-mode-active';
+
+    function isReaderModeEnabled() {
+      return localStorage.getItem(STORAGE_KEY) === 'true';
+    }
+
+    function setReaderMode(active) {
+      localStorage.setItem(STORAGE_KEY, active ? 'true' : 'false');
+      applyReaderModeUI(active);
+    }
+
+    function applyReaderModeUI(active) {
+      const html = document.documentElement;
+      const btn = document.getElementById('reader-mode-btn');
+      const iconDefault = document.getElementById('reader-icon-default');
+      const iconActive = document.getElementById('reader-icon-active');
+      const tooltip = document.getElementById('reader-mode-tooltip');
+      const floatingBar = document.getElementById('reader-mode-floating-bar');
+
+      if (active) {
+        html.classList.add('reader-mode-active');
+        if (btn) {
+          btn.classList.add('border-amber-500/80', 'text-amber-500', 'bg-amber-500/10');
+          btn.setAttribute('aria-pressed', 'true');
+        }
+        if (iconDefault) iconDefault.classList.add('hidden');
+        if (iconActive) iconActive.classList.remove('hidden');
+        if (tooltip) tooltip.textContent = 'Exit Reader Mode [Esc / Alt+R]';
+        if (floatingBar) {
+          floatingBar.classList.remove('hidden');
+          floatingBar.style.display = 'flex';
+        }
+      } else {
+        html.classList.remove('reader-mode-active');
+        if (btn) {
+          btn.classList.remove('border-amber-500/80', 'text-amber-500', 'bg-amber-500/10');
+          btn.setAttribute('aria-pressed', 'false');
+        }
+        if (iconDefault) iconDefault.classList.remove('hidden');
+        if (iconActive) iconActive.classList.add('hidden');
+        if (tooltip) tooltip.textContent = 'Eye Comfort Mode [Alt+R]';
+        if (floatingBar) {
+          floatingBar.classList.add('hidden');
+          floatingBar.style.display = 'none';
+        }
+      }
+    }
+
+    function toggleReaderMode() {
+      const current = isReaderModeEnabled();
+      setReaderMode(!current);
+    }
+
+    function initReaderMode() {
+      const btn = document.getElementById('reader-mode-btn');
+      const exitBtn = document.getElementById('reader-mode-exit-btn');
+
+      if (btn) {
+        btn.onclick = (e) => {
+          e.preventDefault();
+          toggleReaderMode();
+        };
+      }
+
+      if (exitBtn) {
+        exitBtn.onclick = (e) => {
+          e.preventDefault();
+          setReaderMode(false);
+        };
+      }
+
+      // Check current state
+      applyReaderModeUI(isReaderModeEnabled());
+    }
+
+    // Global keyboard shortcut: Alt+R or 'r' (when not in input/textarea) to toggle, Esc to exit
+    if (!window.__readerModeKeyHandlerRegistered) {
+      window.__readerModeKeyHandlerRegistered = true;
+      document.addEventListener('keydown', (e) => {
+        const isTargetInput = ['input', 'textarea', 'select'].includes(document.activeElement?.tagName?.toLowerCase());
+
+        // Esc exits reader mode if active
+        if (e.key === 'Escape' && isReaderModeEnabled()) {
+          setReaderMode(false);
+          return;
+        }
+
+        // Alt+R or Meta+R
+        if (e.altKey && e.key.toLowerCase() === 'r') {
+          e.preventDefault();
+          toggleReaderMode();
+          return;
+        }
+
+        // Single key 'r' when not in any input or modal
+        if (
+          e.key.toLowerCase() === 'r' &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          !e.altKey &&
+          !isTargetInput
+        ) {
+          // Verify no modal is currently open
+          const uploadModal = document.getElementById('blog-upload-backdrop');
+          const isUploadOpen = uploadModal && !uploadModal.classList.contains('hidden') && uploadModal.style.display !== 'none';
+          const paletteModal = document.getElementById('command-palette-backdrop');
+          const isPaletteOpen = paletteModal && !paletteModal.classList.contains('hidden') && paletteModal.style.display !== 'none';
+
+          if (!isUploadOpen && !isPaletteOpen) {
+            e.preventDefault();
+            toggleReaderMode();
+          }
+        }
+      });
+    }
+
+    // Hook lifecycle listeners
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initReaderMode);
+    } else {
+      initReaderMode();
+    }
+    document.addEventListener('astro:page-load', initReaderMode);
+    document.addEventListener('astro:after-swap', () => {
+      applyReaderModeUI(isReaderModeEnabled());
+    });
+  })();
+</script>

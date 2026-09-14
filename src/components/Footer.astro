@@ -8,36 +8,49 @@ const currentYear = new Date().getFullYear();
     <!-- Left: Author & Copyright -->
     <div class="text-on-surface-variant flex items-center gap-2">
       <span class="text-primary font-bold">&gt;</span>
-      <span class="text-on-surface font-medium">© {currentYear} {siteConfig.author}</span>
+      <span class="text-on-surface font-medium" data-footer-brand>© {currentYear} {siteConfig.name}</span>
     </div>
 
     <!-- Right: Terminal Social & Feed Coordinates -->
     <div class="flex flex-wrap items-center justify-center sm:justify-end gap-3 text-on-surface-variant text-[12px]">
-      <a
-        href={siteConfig.githubUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1"
-      >
-        <span>GitHub</span>
-      </a>
-      <span class="text-outline">·</span>
-      <a
-        href={siteConfig.twitterUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1"
-      >
-        <span>Twitter</span>
-      </a>
-      <span class="text-outline">·</span>
-      <a
-        href={`mailto:${siteConfig.email}`}
-        class="hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1"
-      >
-        <span>Email</span>
-      </a>
-      <span class="text-outline">·</span>
+      {siteConfig.githubUrl && (
+        <a
+          href={siteConfig.githubUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1"
+          data-footer-github
+        >
+          <span>GitHub</span>
+        </a>
+      )}
+      {siteConfig.twitterUrl && (
+        <>
+          {siteConfig.githubUrl && <span class="text-outline">·</span>}
+          <a
+            href={siteConfig.twitterUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1"
+            data-footer-twitter
+          >
+            <span>Twitter</span>
+          </a>
+        </>
+      )}
+      {siteConfig.email && (
+        <>
+          {(siteConfig.githubUrl || siteConfig.twitterUrl) && <span class="text-outline">·</span>}
+          <a
+            href={`mailto:${siteConfig.email}`}
+            class="hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1"
+            data-footer-email
+          >
+            <span>Email</span>
+          </a>
+        </>
+      )}
+      {(siteConfig.githubUrl || siteConfig.twitterUrl || siteConfig.email) && <span class="text-outline">·</span>}
       <a
         href="/feed.xml"
         class="hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1 text-primary"

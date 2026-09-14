@@ -24,13 +24,13 @@ const { tag, count, isActive = false, href, size = 'sm' } = Astro.props;
     title={`Filter by #${tag}`}
   >
     <span
-      class={`w-1.5 h-1.5 rounded-none transition-colors ${
+      class={`w-1.5 h-1.5 rounded-none transition-colors shrink-0 ${
         isActive ? 'bg-primary' : 'bg-outline-variant group-hover:bg-primary'
       }`}
     ></span>
-    <span>{tag}</span>
+    <span class="truncate max-w-[180px]">{tag}</span>
     {count !== undefined && (
-      <span class="text-outline group-hover:text-primary text-[10px] pl-0.5 font-normal">
+      <span class="text-outline group-hover:text-primary text-[10px] pl-0.5 font-normal shrink-0">
         ({count})
       </span>
     )}
@@ -39,7 +39,7 @@ const { tag, count, isActive = false, href, size = 'sm' } = Astro.props;
   <button
     type="button"
     data-tag-badge={tag}
-    class={`inline-flex items-center gap-1 rounded-[2px] font-mono leading-tight transition-colors group select-none cursor-pointer ${
+    class={`inline-flex items-center gap-1 rounded-[2px] font-mono leading-tight transition-colors group select-none cursor-pointer max-w-full ${
       size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-[12px]'
     } ${
       isActive
@@ -49,13 +49,13 @@ const { tag, count, isActive = false, href, size = 'sm' } = Astro.props;
     title={`Filter by #${tag}`}
   >
     <span
-      class={`w-1.5 h-1.5 rounded-none transition-colors ${
+      class={`w-1.5 h-1.5 rounded-none transition-colors shrink-0 ${
         isActive ? 'bg-primary' : 'bg-outline-variant group-hover:bg-primary'
       }`}
     ></span>
-    <span>{tag}</span>
+    <span class="truncate max-w-[180px]">{tag}</span>
     {count !== undefined && (
-      <span class="text-outline group-hover:text-primary text-[10px] pl-0.5 font-normal">
+      <span class="text-outline group-hover:text-primary text-[10px] pl-0.5 font-normal shrink-0">
         ({count})
       </span>
     )}

@@ -1,8 +1,0 @@
-{"version": 2, "width": 80, "height": 24, "timestamp": 1770000000, "title": "Kernel Debug Session"}
-[0.1, "o", "kd> !process 0 0 target.exe\r\n"]
-[0.5, "o", "PROCESS ffffe00012345678\r\n    SessionId: 1  Cid: 0e44    Peb: 00000080001000  ParentCid: 0420\r\n    DirBase: 1a2b3c000  ObjectTable: ffff8000abcdef00  Image: target.exe\r\n\r\n"]
-[1.2, "o", "kd> r dr0, dr1, dr2, dr3, dr7\r\n"]
-[1.6, "o", "dr0=00007ff6a1b2c3d4 dr1=0000000000000000 dr2=0000000000000000\r\ndr3=0000000000000000 dr7=0000000000000401\r\n\r\n"]
-[2.2, "o", "kd> u 00007ff6a1b2c3d4 L3\r\n"]
-[2.6, "o", "target!ValidateChecksum:\r\n00007ff6`a1b2c3d4 48895c2408      mov     qword ptr [rsp+8],rbx\r\n00007ff6`a1b2c3d9 48896c2410      mov     qword ptr [rsp+10h],rbp\r\n00007ff6`a1b2c3de 4889742418      mov     qword ptr [rsp+18h],rsi\r\n"]
-[3.5, "o", "kd> q\r\nquit:\r\n"]

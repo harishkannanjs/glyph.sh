@@ -63,12 +63,26 @@
     --code-bg: #11111b;
   }
 
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+
   html, body {
     margin: 0;
     padding: 0;
     font-family: 'JetBrains Mono', monospace;
     background-color: var(--surface);
     color: var(--on-surface);
+  }
+
+  article h1[id],
+  article h2[id],
+  article h3[id],
+  article h4[id],
+  article h5[id],
+  article h6[id] {
+    scroll-margin-top: 5rem;
   }
 
   * {
@@ -164,6 +178,8 @@
   color: var(--on-surface);
   font-family: 'JetBrains Mono', monospace;
   line-height: 1.75;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .prose p {
@@ -177,6 +193,14 @@
   margin-top: 2rem;
   margin-bottom: 0.75rem;
   scroll-margin-top: 5rem;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* If a markdown file starts with an h1, suppress it to prevent duplicating the layout title */
+.prose > h1:first-child,
+.prose > :first-child:is(h1) {
+  display: none;
 }
 
 .prose h2 {
@@ -193,6 +217,8 @@
   color: var(--primary);
   text-decoration: underline;
   text-underline-offset: 4px;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .prose pre {
@@ -201,6 +227,7 @@
   padding: 1rem;
   border-radius: 0;
   overflow-x: auto;
+  max-width: 100%;
   font-size: 13px;
   line-height: 22px;
   margin: 1.5rem 0;
@@ -213,6 +240,8 @@
   border-radius: 2px;
   font-size: 13px;
   color: var(--primary);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .prose blockquote {
@@ -221,6 +250,7 @@
   padding: 0.5rem 1rem;
   margin: 1.5rem 0;
   color: var(--on-surface-variant);
+  overflow-wrap: break-word;
 }
 
 .prose ul, .prose ol {
@@ -230,9 +260,156 @@
 
 .prose li {
   margin: 0.25rem 0;
+  overflow-wrap: break-word;
+}
+
+.prose table {
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 13px;
+}
+
+.prose th, .prose td {
+  border: 1px solid var(--outline-variant);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.prose th {
+  background-color: var(--surface-container);
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.prose img, .prose video, .prose iframe {
+  max-width: 100%;
+  height: auto;
+  border-radius: 2px;
 }
 
 .prose hr {
   border-color: var(--outline-variant);
   margin: 2rem 0;
+}
+
+/* ==========================================================================
+   Eye-Comfort Reader Mode: Blue-Light Attenuation & Distraction-Free Layout
+   ========================================================================== */
+
+/* Dark theme eye comfort: Warm amber-tinted OLED dark (absorbs high-energy blue rays) */
+html.reader-mode-active.dark,
+:root.reader-mode-active.dark,
+html.reader-mode-active {
+  --background: #171513 !important;
+  --surface: #171513 !important;
+  --surface-dim: #13110f !important;
+  --surface-bright: #26221d !important;
+  --surface-container-lowest: #0e0d0c !important;
+  --surface-container-low: #1c1916 !important;
+  --surface-container: #26221d !important;
+  --surface-container-high: #332d26 !important;
+  --surface-container-highest: #443c33 !important;
+  --surface-variant: #26221d !important;
+  --on-surface: #ded5c8 !important;
+  --on-surface-variant: #b5a999 !important;
+  --on-background: #ded5c8 !important;
+  --outline: #736757 !important;
+  --outline-variant: #3a332a !important;
+  --primary: #e5a962 !important;
+  --primary-container: #3d2b14 !important;
+  --on-primary: #171513 !important;
+  --secondary: #e0b084 !important;
+  --secondary-container: #3a2818 !important;
+  --on-secondary: #171513 !important;
+  --code-bg: #100f0d !important;
+}
+
+/* Light theme eye comfort: Warm paper parchment tone (minimizes glare & blue emission) */
+html.reader-mode-active:not(.dark) {
+  --background: #f5eedc !important;
+  --surface: #f5eedc !important;
+  --surface-dim: #ede3cd !important;
+  --surface-bright: #faf5eb !important;
+  --surface-container-lowest: #e5dac2 !important;
+  --surface-container-low: #eee5d2 !important;
+  --surface-container: #e8dec7 !important;
+  --surface-container-high: #ded3bb !important;
+  --surface-container-highest: #cfc3a9 !important;
+  --surface-variant: #e8dec7 !important;
+  --on-surface: #382c20 !important;
+  --on-surface-variant: #6b5742 !important;
+  --on-background: #382c20 !important;
+  --outline: #9c8b74 !important;
+  --outline-variant: #dfd2be !important;
+  --primary: #945823 !important;
+  --primary-container: #f0cfad !important;
+  --on-primary: #ffffff !important;
+  --secondary: #a36b32 !important;
+  --secondary-container: #f3dfca !important;
+  --on-secondary: #ffffff !important;
+  --code-bg: #ece2cb !important;
+}
+
+/* Enhanced typography & optimal eye comfort spacing */
+html.reader-mode-active .prose {
+  font-size: 16px !important;
+  line-height: 1.9 !important;
+  letter-spacing: 0.012em !important;
+  max-width: 680px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+html.reader-mode-active .prose p {
+  margin-top: 1.35rem !important;
+  margin-bottom: 1.35rem !important;
+}
+
+/* Distraction-free: conceal peripheral chrome when reading (keep Table of Contents accessible) */
+html.reader-mode-active header.fixed,
+html.reader-mode-active footer,
+html.reader-mode-active #reading-progress-bar,
+html.reader-mode-active aside:not(.toc-rail),
+html.reader-mode-active .reader-mode-hide {
+  display: none !important;
+}
+
+/* Ensure Table of Contents rail is visible and eye-comfort styled on desktop in reader mode */
+@media (min-width: 1024px) {
+  html.reader-mode-active aside.toc-rail,
+  html.reader-mode-active #toc-rail {
+    display: block !important;
+  }
+}
+
+html.reader-mode-active .toc-rail > div {
+  top: 2rem !important;
+  max-height: calc(100vh - 4rem) !important;
+  background-color: var(--color-surface-container-low) !important;
+  border-color: var(--color-outline-variant) !important;
+}
+
+/* Recenter article container and remove header offset when header is hidden */
+html.reader-mode-active main {
+  padding-top: 2rem !important;
+}
+
+html.reader-mode-active article {
+  max-width: 720px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Eye-comfort scroll margins for headings when fixed header is hidden */
+html.reader-mode-active article h1[id],
+html.reader-mode-active article h2[id],
+html.reader-mode-active article h3[id],
+html.reader-mode-active article h4[id],
+html.reader-mode-active article h5[id],
+html.reader-mode-active article h6[id] {
+  scroll-margin-top: 2rem !important;
 }

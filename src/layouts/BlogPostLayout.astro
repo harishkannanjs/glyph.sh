@@ -7,6 +7,10 @@ import TagBadge from '@/components/TagBadge.astro';
 import SeriesStrip from '@/components/SeriesStrip.astro';
 import ChangelogPopover from '@/components/ChangelogPopover.astro';
 import CopyMarkdownButton from '@/components/CopyMarkdownButton.astro';
+import CopyLinkButton from '@/components/CopyLinkButton.astro';
+import AudioReader from '@/components/AudioReader.astro';
+import ReaderModeButton from '@/components/ReaderModeButton.astro';
+import TextMagnifier from '@/components/TextMagnifier.astro';
 import RelatedPosts from '@/components/RelatedPosts.astro';
 import PrevNextNav from '@/components/PrevNextNav.astro';
 import GiscusComments from '@/components/GiscusComments.astro';
@@ -31,6 +35,10 @@ const pubDateStr = new Date(post.data.pubDate).toISOString().split('T')[0];
 const updatedDateStr = post.data.updatedDate
   ? new Date(post.data.updatedDate).toISOString().split('T')[0]
   : null;
+
+// Repository directory segments for breadcrumb
+const normalizedId = post.id.replace(/\\/g, '/');
+const dirSegments = normalizedId.split('/');
 ---
 
 <BaseLayout
@@ -44,14 +52,22 @@ const updatedDateStr = post.data.updatedDate
   <ReadingProgressBar />
 
   <div class="max-w-[1040px] mx-auto px-4 md:px-8 py-8">
-    <!-- Breadcrumb -->
-    <div class="flex items-center gap-2 text-[11px] text-outline mb-4 uppercase tracking-wider font-mono">
+    <!-- Directory of the blog -->
+    <div class="flex items-center gap-1.5 text-[11px] text-outline mb-4 font-mono overflow-x-auto whitespace-nowrap">
       <span class="text-primary font-bold">&gt;</span>
-      <a href="/" class="hover:text-primary transition-colors">ROOT</a>
+      <a href="/" class="hover:text-primary transition-colors font-medium">ROOT</a>
       <span class="text-outline-variant">/</span>
-      <a href="/blog" class="hover:text-primary transition-colors">WRITEUPS</a>
-      <span class="text-outline-variant">/</span>
-      <span class="text-primary font-mono">{slug}</span>
+      <a href="/" class="hover:text-primary transition-colors font-medium">Blogs</a>
+      {dirSegments.map((segment, idx) => (
+        <>
+          <span class="text-outline-variant">/</span>
+          {idx === dirSegments.length - 1 ? (
+            <span class="text-primary font-semibold">{segment}</span>
+          ) : (
+            <span class="text-on-surface-variant">{segment}</span>
+          )}
+        </>
+      ))}
     </div>
 
     <!-- Main 2-column layout (content + sticky TOC) -->
@@ -61,7 +77,7 @@ const updatedDateStr = post.data.updatedDate
         <!-- Header -->
         <header class="mb-8 font-mono">
           <h1
-            class="text-[26px] sm:text-[28px] text-on-surface mb-3 font-semibold tracking-tight leading-snug font-mono"
+            class="text-[26px] sm:text-[28px] text-on-surface mb-3 font-semibold tracking-tight leading-snug font-mono break-words"
             transition:name={`post-title-${slug}`}
             data-pagefind-meta="title"
           >
@@ -87,14 +103,23 @@ const updatedDateStr = post.data.updatedDate
             )}
           </div>
 
-          <!-- Tags & Copy Markdown Bar -->
+          <!-- Top Bar Section: Tags -> Play Audio -> Copy Link -> Copy as Markdown -->
           <div class="flex items-center justify-between flex-wrap gap-3 py-2 bg-surface-container-low px-3 rounded-[2px] border border-outline-variant">
+            <!-- Left: Tags -->
             <div class="flex items-center gap-1.5 flex-wrap">
               {post.data.tags.map((tag) => (
                 <TagBadge tag={tag} />
               ))}
             </div>
-            <CopyMarkdownButton rawContent={post.body || ''} />
+
+            <!-- Right: Play Audio -> Reader's Mode (Eye Comfort) -> Text Magnifier -> Copy Link -> Copy as Markdown -->
+            <div class="flex items-center gap-2">
+              <AudioReader />
+              <ReaderModeButton />
+              <TextMagnifier />
+              <CopyLinkButton />
+              <CopyMarkdownButton rawContent={post.body || ''} />
+            </div>
           </div>
 
           <!-- Series Strip if applicable -->
@@ -109,14 +134,20 @@ const updatedDateStr = post.data.updatedDate
           <slot />
         </section>
 
-        <!-- Related Posts -->
-        <RelatedPosts currentPost={post} allPosts={allPosts} />
+        <!-- Previous + next entry -->
+        <div class="reader-mode-hide">
+          <PrevNextNav prevPost={prevPost} nextPost={nextPost} />
+        </div>
 
-        <!-- Previous / Next Navigation -->
-        <PrevNextNav prevPost={prevPost} nextPost={nextPost} />
+        <!-- Related Teardowns & Research -->
+        <div class="reader-mode-hide">
+          <RelatedPosts currentPost={post} allPosts={allPosts} />
+        </div>
 
-        <!-- Comments Section -->
-        <GiscusComments />
+        <!-- Comments Section (Powered by Giscus, Zero Server) -->
+        <div class="reader-mode-hide">
+          <GiscusComments postTitle={post.data.title} postSlug={post.id} />
+        </div>
       </article>
 
       <!-- Sticky Rail Table of Contents for viewports >=1280px -->
@@ -155,13 +186,27 @@ const updatedDateStr = post.data.updatedDate
               anchor.classList.remove('text-primary');
             }, 1800);
           } catch (err) {
-            window.location.hash = heading.id;
+            // fallback
           }
+
+          const isReader = document.documentElement.classList.contains('reader-mode-active');
+          const headerOffset = isReader ? 28 : 80;
+          const elementPosition = heading.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth',
+          });
         };
       });
     }
 
-    initHeadingAnchors();
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initHeadingAnchors);
+    } else {
+      initHeadingAnchors();
+    }
+    document.addEventListener('astro:page-load', initHeadingAnchors);
     document.addEventListener('astro:after-swap', initHeadingAnchors);
   </script>
 </BaseLayout>

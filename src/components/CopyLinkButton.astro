@@ -1,23 +1,18 @@
 ---
-interface Props {
-  rawContent: string;
-}
-
-const { rawContent } = Astro.props;
+// CopyLinkButton.astro: Copy current blog post page link to clipboard
 ---
 
 <div class="relative group inline-flex">
   <button
     type="button"
-    id="copy-markdown-btn"
-    data-content={encodeURIComponent(rawContent)}
+    id="copy-link-btn"
     class="flex items-center justify-center w-7 h-7 bg-surface-container border border-outline-variant hover:border-primary text-on-surface-variant hover:text-primary rounded-[2px] transition-colors cursor-pointer select-none"
-    title="Copy as Markdown"
-    aria-label="Copy as Markdown"
+    title="Copy page link"
+    aria-label="Copy page link"
   >
-    <!-- Default Markdown Document SVG Icon -->
+    <!-- Default Chain Link SVG -->
     <svg
-      id="copy-markdown-icon-default"
+      id="copy-link-icon-default"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
       fill="none"
@@ -27,13 +22,13 @@ const { rawContent } = Astro.props;
       stroke-linejoin="round"
       class="w-3.5 h-3.5"
     >
-      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
     </svg>
 
     <!-- Success Checkmark SVG -->
     <svg
-      id="copy-markdown-icon-check"
+      id="copy-link-icon-check"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
       fill="none"
@@ -49,49 +44,46 @@ const { rawContent } = Astro.props;
 
   <!-- Floating Hover Description Tooltip -->
   <span
-    id="copy-markdown-tooltip"
+    id="copy-link-tooltip"
     class="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-surface-container-highest border border-outline-variant text-[10px] text-on-surface px-1.5 py-0.5 rounded-[2px] opacity-0 group-hover:opacity-100 transition-opacity z-30 font-mono select-none"
   >
-    Copy as Markdown
+    Copy page link
   </span>
 </div>
 
 <script is:inline>
   (function () {
-    function initCopyMarkdown() {
-      const btn = document.getElementById('copy-markdown-btn');
-      const iconDefault = document.getElementById('copy-markdown-icon-default');
-      const iconCheck = document.getElementById('copy-markdown-icon-check');
-      const tooltip = document.getElementById('copy-markdown-tooltip');
+    function initCopyLink() {
+      const btn = document.getElementById('copy-link-btn');
+      const iconDefault = document.getElementById('copy-link-icon-default');
+      const iconCheck = document.getElementById('copy-link-icon-check');
+      const tooltip = document.getElementById('copy-link-tooltip');
 
       if (!btn) return;
 
       btn.onclick = async () => {
-        const raw = decodeURIComponent(btn.getAttribute('data-content') || '');
-        if (!raw) return;
-
         try {
-          await navigator.clipboard.writeText(raw);
+          await navigator.clipboard.writeText(window.location.href);
           iconDefault?.classList.add('hidden');
           iconCheck?.classList.remove('hidden');
-          if (tooltip) tooltip.textContent = 'Copied as Markdown!';
+          if (tooltip) tooltip.textContent = 'Link copied!';
 
           setTimeout(() => {
             iconDefault?.classList.remove('hidden');
             iconCheck?.classList.add('hidden');
-            if (tooltip) tooltip.textContent = 'Copy as Markdown';
+            if (tooltip) tooltip.textContent = 'Copy page link';
           }, 2000);
         } catch (err) {
-          console.error('Failed to copy markdown:', err);
+          console.error('Failed to copy page link:', err);
         }
       };
     }
 
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initCopyMarkdown);
+      document.addEventListener('DOMContentLoaded', initCopyLink);
     } else {
-      initCopyMarkdown();
+      initCopyLink();
     }
-    document.addEventListener('astro:page-load', initCopyMarkdown);
+    document.addEventListener('astro:page-load', initCopyLink);
   })();
 </script>

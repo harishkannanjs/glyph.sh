@@ -31,7 +31,15 @@ export function getSeriesInfo(
     .filter((p) => p.data.series === series && !p.data.draft)
     .sort((a, b) => (a.data.seriesPart || 0) - (b.data.seriesPart || 0));
 
-  const totalParts = currentPost.data.seriesTotal || seriesPosts.length;
+  const maxExplicitTotal = Math.max(
+    0,
+    ...seriesPosts.map((p) => p.data.seriesTotal || 0),
+    currentPost.data.seriesTotal || 0,
+    seriesPosts.length,
+    seriesPart
+  );
+
+  const totalParts = maxExplicitTotal > 0 ? maxExplicitTotal : Math.max(seriesPosts.length, 1);
 
   const parts: SeriesPart[] = [];
   for (let i = 1; i <= totalParts; i++) {

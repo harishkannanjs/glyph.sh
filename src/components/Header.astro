@@ -8,38 +8,37 @@ interface Props {
 
 const { activePath = '/' } = Astro.props;
 
-const navLinks = [
-  { href: '/', label: 'Home' },
-  { href: '/about', label: 'Profile' },
-];
+const navLinks: { href: string; label: string }[] = [];
 ---
 
 <header class="fixed top-0 left-0 right-0 z-40 bg-surface/90 backdrop-blur-md border-b border-outline-variant transition-colors">
   <div class="h-14 max-w-[1040px] mx-auto px-4 md:px-8 flex items-center justify-between">
     <!-- Left: Brand & Nav -->
     <div class="flex items-center gap-6 md:gap-8">
-      <a href="/" class="flex items-center gap-1 font-mono text-[14px] hover:opacity-90 transition-opacity">
+      <a href="/" class="flex items-center gap-0.5 font-mono text-[14px] hover:opacity-90 transition-opacity">
         <span class="text-primary font-bold">&gt;</span>
-        <span class="text-on-surface font-semibold tracking-tight" data-author-brand>{siteConfig.author.toLowerCase()}</span>
+        <span class="text-on-surface font-semibold tracking-tight" data-author-brand>{siteConfig.name}</span>
       </a>
-      <nav class="flex items-center gap-4 text-[13px] font-mono">
-        {navLinks.map((link) => {
-          const isActive = activePath === link.href || (link.href !== '/' && activePath.startsWith(link.href));
-          return (
-            <a
-              href={link.href}
-              class={`transition-colors hover:underline underline-offset-4 ${
-                isActive
-                  ? 'text-primary font-bold'
-                  : 'text-on-surface-variant hover:text-on-surface'
-              }`}
-              aria-current={isActive ? 'page' : undefined}
-            >
-              {link.label}
-            </a>
-          );
-        })}
-      </nav>
+      {navLinks.length > 0 && (
+        <nav class="flex items-center gap-4 text-[13px] font-mono">
+          {navLinks.map((link) => {
+            const isActive = activePath === link.href || (link.href !== '/' && activePath.startsWith(link.href));
+            return (
+              <a
+                href={link.href}
+                class={`transition-colors hover:underline underline-offset-4 ${
+                  isActive
+                    ? 'text-primary font-bold'
+                    : 'text-on-surface-variant hover:text-on-surface'
+                }`}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                {link.label}
+              </a>
+            );
+          })}
+        </nav>
+      )}
     </div>
 
     <!-- Right: Search, Theme Toggle, UID -->
@@ -50,7 +49,7 @@ const navLinks = [
         class="flex items-center gap-2 bg-surface-container border border-outline-variant hover:border-outline px-2.5 py-1 rounded-[2px] text-[11px] text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
         title="Search (Ctrl+K or /)"
       >
-        <span class="text-primary font-mono font-bold">&gt;_</span>
+        <span class="text-primary font-mono font-bold">></span>
         <span class="hidden sm:inline">Search</span>
         <kbd class="px-1 bg-surface-container-high text-primary border border-outline-variant rounded-[2px] text-[10px] font-mono">/</kbd>
       </button>
@@ -58,11 +57,21 @@ const navLinks = [
       <ThemeToggle />
 
       <a
-        href="/about"
-        class="flex items-center justify-center w-7 h-7 bg-surface-container border border-outline-variant hover:border-primary rounded-[2px] text-on-surface-variant hover:text-primary transition-colors"
-        title={`Profile // ${siteConfig.author}`}
+        href="/profile/"
+        class={`flex items-center justify-center w-7 h-7 rounded-[2px] transition-colors border overflow-hidden ${
+          activePath === '/profile' || activePath === '/profile/'
+            ? 'border-primary text-primary bg-surface-container-high'
+            : 'bg-surface-container border-outline-variant hover:border-primary text-on-surface-variant hover:text-primary'
+        }`}
+        title="Profile"
         aria-label="Profile"
       >
+        <img
+          src={siteConfig.avatar || siteConfig.logo || ''}
+          alt={siteConfig.githubUsername}
+          class={`w-full h-full object-cover ${siteConfig.avatar || siteConfig.logo ? '' : 'hidden'}`}
+          data-header-avatar
+        />
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
@@ -71,7 +80,8 @@ const navLinks = [
           stroke-width="1.8"
           stroke-linecap="round"
           stroke-linejoin="round"
-          class="w-3.5 h-3.5"
+          class={`w-3.5 h-3.5 ${siteConfig.avatar || siteConfig.logo ? 'hidden' : ''}`}
+          data-header-avatar-fallback
           aria-hidden="true"
         >
           <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />

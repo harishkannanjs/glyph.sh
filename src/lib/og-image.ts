@@ -2,6 +2,7 @@ import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { siteConfig } from '@/site.config';
 
 let fontData: Buffer | null = null;
 let fontBoldData: Buffer | null = null;
@@ -91,7 +92,7 @@ export async function generateOgImage({
                         type: 'span',
                         props: {
                           style: { color: '#cdd6f4', fontSize: '20px', fontWeight: 600 },
-                          children: 'harish@research:~$ cat writeup.md',
+                          children: `${siteConfig.githubUsername}@research:~$ cat writeup.md`,
                         },
                       },
                     ],
@@ -192,7 +193,7 @@ export async function generateOgImage({
                       fontSize: '16px',
                       fontWeight: 600,
                     },
-                    children: 'Terminal Blog // Technical Research',
+                    children: `${siteConfig.name} // Technical Research`,
                   },
                 },
               ],

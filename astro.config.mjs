@@ -7,11 +7,26 @@ import rehypeKatex from 'rehype-katex';
 
 import fs from 'node:fs';
 import path from 'node:path';
+import yaml from 'js-yaml';
+import { slug as githubSlug } from 'github-slugger';
 
 function profileDevMiddleware() {
   return {
     name: 'profile-dev-middleware',
     configureServer(server) {
+      // Prevent Vite dev server from resolving /profile to root profile.json ES module
+      server.middlewares.use((req, res, next) => {
+        const url = req.url || '';
+        const pathname = url.split('?')[0];
+        if (pathname === '/profile') {
+          const query = url.includes('?') ? url.slice(url.indexOf('?')) : '';
+          res.writeHead(302, { Location: `/profile/${query}` });
+          res.end();
+          return;
+        }
+        next();
+      });
+
       server.middlewares.use('/api/save-profile', (req, res) => {
         if (req.method === 'POST') {
           let body = '';
@@ -35,15 +50,682 @@ function profileDevMiddleware() {
           res.end(JSON.stringify({ error: 'Method not allowed' }));
         }
       });
+
+      server.middlewares.use('/api/upload-logo', (req, res) => {
+        if (req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk) => {
+            body += chunk;
+            if (body.length > 10 * 1024 * 1024) {
+              res.writeHead(413, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Payload exceeds 10MB limit' }));
+              req.destroy();
+            }
+          });
+          req.on('end', () => {
+            try {
+              const { image, filename } = JSON.parse(body);
+              if (!image || typeof image !== 'string' || !image.includes(',')) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Valid image base64 data URL is required' }));
+                return;
+              }
+
+              // Determine file extension
+              let ext = '.png';
+              if (filename && path.extname(filename)) {
+                const parsedExt = path.extname(filename).toLowerCase();
+                if (['.png', '.jpg', '.jpeg', '.webp', '.svg', '.gif'].includes(parsedExt)) {
+                  ext = parsedExt === '.jpeg' ? '.jpg' : parsedExt;
+                }
+              } else {
+                const mimeMatch = image.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,/);
+                if (mimeMatch) {
+                  const mime = mimeMatch[1].toLowerCase();
+                  if (mime.includes('jpeg') || mime.includes('jpg')) ext = '.jpg';
+                  else if (mime.includes('svg')) ext = '.svg';
+                  else if (mime.includes('webp')) ext = '.webp';
+                  else if (mime.includes('gif')) ext = '.gif';
+                }
+              }
+
+              const publicDir = path.resolve(process.cwd(), 'public');
+              if (!fs.existsSync(publicDir)) {
+                fs.mkdirSync(publicDir, { recursive: true });
+              }
+
+              // Remove any existing profile-logo.* files with different extensions
+              const existingFiles = fs.readdirSync(publicDir);
+              for (const f of existingFiles) {
+                if (/^profile-logo\.(png|jpe?g|webp|svg|gif)$/i.test(f)) {
+                  try {
+                    fs.unlinkSync(path.join(publicDir, f));
+                  } catch {}
+                }
+              }
+
+              const logoFilename = `profile-logo${ext}`;
+              const targetPath = path.join(publicDir, logoFilename);
+              const base64Content = image.replace(/^data:[^;]+;base64,/, '');
+              fs.writeFileSync(targetPath, Buffer.from(base64Content, 'base64'));
+
+              // Update profile.json
+              const profilePath = path.resolve(process.cwd(), 'profile.json');
+              let profileData = {};
+              if (fs.existsSync(profilePath)) {
+                try {
+                  profileData = JSON.parse(fs.readFileSync(profilePath, 'utf-8'));
+                } catch {}
+              }
+              const logoUrl = `/${logoFilename}`;
+              profileData.avatar = logoUrl;
+              profileData.logo = logoUrl;
+              fs.writeFileSync(profilePath, JSON.stringify(profileData, null, 2) + '\n', 'utf-8');
+
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({
+                success: true,
+                url: logoUrl,
+                message: `Logo saved to repository at public/${logoFilename} and updated in profile.json!`
+              }));
+            } catch (err) {
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+        } else {
+          res.writeHead(405, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+        }
+      });
+
+      function getFileEpisode(filePath, filename) {
+        try {
+          const raw = fs.readFileSync(filePath, 'utf-8');
+          const frontmatterMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+          if (frontmatterMatch) {
+            const parsed = yaml.load(frontmatterMatch[1]);
+            if (parsed) {
+              if (typeof parsed.seriesPart === 'number' && parsed.seriesPart > 0) {
+                return parsed.seriesPart;
+              }
+              if (Array.isArray(parsed.tags)) {
+                const epTag = parsed.tags.find((t) => typeof t === 'string' && /^episode-\d+$/i.test(t));
+                if (epTag) {
+                  const num = parseInt(epTag.replace(/^episode-/i, ''), 10);
+                  if (!isNaN(num) && num > 0) return num;
+                }
+              }
+            }
+          }
+        } catch {}
+        const match = filename.match(/^(?:part[-_]?)?(\d+)(?:[-_]|$)/i);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > 0) return num;
+        }
+        return null;
+      }
+
+      server.middlewares.use('/api/series-info', (req, res) => {
+        if (req.method === 'GET') {
+          try {
+            const seriesDir = path.resolve(process.cwd(), 'Blogs', 'series');
+            const result = {};
+            if (fs.existsSync(seriesDir)) {
+              const folders = fs.readdirSync(seriesDir, { withFileTypes: true })
+                .filter((d) => d.isDirectory())
+                .map((d) => d.name);
+
+              for (const folder of folders) {
+                const folderPath = path.join(seriesDir, folder);
+                const files = fs.readdirSync(folderPath)
+                  .filter((f) => /\.(md|mdx)$/i.test(f))
+                  .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+                const episodes = {};
+                let maxEp = 0;
+                let maxSeriesTotal = 0;
+                let lastlyUpdatedTotal = 0;
+                let latestFileMtime = 0;
+
+                for (let i = 0; i < files.length; i++) {
+                  const file = files[i];
+                  const filePath = path.join(folderPath, file);
+                  let fileMtime = 0;
+                  try {
+                    const st = fs.statSync(filePath);
+                    fileMtime = st.mtimeMs || 0;
+                  } catch {}
+
+                  let epNum = getFileEpisode(filePath, file);
+                  if (epNum === null) {
+                    epNum = i + 1;
+                  }
+                  if (epNum > maxEp) maxEp = epNum;
+
+                  let title = file.replace(/\.(md|mdx)$/i, '');
+                  try {
+                    const raw = fs.readFileSync(filePath, 'utf-8');
+                    const frontmatterMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+                    if (frontmatterMatch) {
+                      const parsed = yaml.load(frontmatterMatch[1]);
+                      if (parsed && parsed.title) title = parsed.title;
+                      if (parsed && parsed.seriesTotal) {
+                        const t = parseInt(parsed.seriesTotal, 10);
+                        if (!isNaN(t) && t > 0) {
+                          if (t > maxSeriesTotal) maxSeriesTotal = t;
+                          if (fileMtime >= latestFileMtime) {
+                            latestFileMtime = fileMtime;
+                            lastlyUpdatedTotal = t;
+                          }
+                        }
+                      }
+                    } else {
+                      const h1Match = raw.match(/^#\s+(.+)$/m);
+                      if (h1Match) title = h1Match[1].trim();
+                    }
+                  } catch {}
+
+                  episodes[epNum] = {
+                    episode: epNum,
+                    filename: file,
+                    title: title,
+                  };
+                }
+
+                const displayName = folder
+                  .split(/[-_]+/)
+                  .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                  .join(' ');
+
+                const establishedTotal = Math.max(
+                  lastlyUpdatedTotal || maxSeriesTotal || 1,
+                  maxEp,
+                  Object.keys(episodes).length
+                );
+
+                result[folder] = {
+                  name: folder,
+                  displayName,
+                  totalEpisodes: establishedTotal,
+                  nextEpisode: maxEp + 1,
+                  episodes,
+                };
+              }
+            }
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+          } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        } else {
+          res.writeHead(405, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+        }
+      });
+
+      server.middlewares.use('/api/upload-blog', (req, res) => {
+        if (req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk) => {
+            body += chunk;
+            if (body.length > 25 * 1024 * 1024) {
+              res.writeHead(413, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'File exceeds 25MB limit' }));
+              req.destroy();
+            }
+          });
+          req.on('end', () => {
+            try {
+              const { type, seriesName, episode, totalEpisodes, filename, content } = JSON.parse(body);
+
+              if (!filename || typeof filename !== 'string') {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Missing or invalid filename' }));
+                return;
+              }
+
+              // Validate extension: strictly .md or .mdx
+              const ext = path.extname(filename).toLowerCase();
+              if (ext !== '.md' && ext !== '.mdx') {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Only .md and .mdx files are allowed' }));
+                return;
+              }
+
+              // Sanitize filename to prevent directory traversal
+              const cleanFilename = path.basename(filename).replace(/[^a-zA-Z0-9_.-]/g, '-');
+              if (!cleanFilename || cleanFilename === '.' || cleanFilename === '..') {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid file name' }));
+                return;
+              }
+
+              // Determine target folder
+              const blogsRoot = path.resolve(process.cwd(), 'Blogs');
+              let targetDir = '';
+              let relDir = '';
+              let cleanSeries = '';
+              let episodeNum = 1;
+
+              if (type === 'series') {
+                if (!seriesName || typeof seriesName !== 'string' || !seriesName.trim()) {
+                  res.writeHead(400, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ error: 'Series name is required for series articles' }));
+                  return;
+                }
+                cleanSeries = seriesName
+                  .trim()
+                  .toLowerCase()
+                  .replace(/[^a-z0-9_-]+/g, '-')
+                  .replace(/^-+|-+$/g, '');
+
+                if (!cleanSeries) {
+                  res.writeHead(400, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ error: 'Invalid series name' }));
+                  return;
+                }
+
+                episodeNum = parseInt(episode, 10);
+                if (isNaN(episodeNum) || episodeNum < 1) {
+                  res.writeHead(400, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ error: 'Episode must be a valid positive number (1, 2, 3...)' }));
+                  return;
+                }
+
+                targetDir = path.resolve(blogsRoot, 'series', cleanSeries);
+                relDir = `Blogs/series/${cleanSeries}`;
+
+                // Check if another file in this series already uses this episode number
+                if (fs.existsSync(targetDir)) {
+                  const siblingFiles = fs.readdirSync(targetDir).filter((f) => /\.(md|mdx)$/i.test(f));
+                  for (const sib of siblingFiles) {
+                    if (sib.toLowerCase() === cleanFilename.toLowerCase()) {
+                      continue; // Updating the same file is allowed
+                    }
+                    const sibPath = path.join(targetDir, sib);
+                    const sibEp = getFileEpisode(sibPath, sib);
+                    if (sibEp === episodeNum) {
+                      res.writeHead(400, { 'Content-Type': 'application/json' });
+                      res.end(JSON.stringify({
+                        error: `Episode ${episodeNum} is already assigned to "${sib}" in series "${cleanSeries}". Each episode in a series must be unique.`
+                      }));
+                      return;
+                    }
+                  }
+                }
+              } else {
+                targetDir = path.resolve(blogsRoot, 'standalone');
+                relDir = 'Blogs/standalone';
+              }
+
+              // Security check: ensure targetDir stays within Blogs
+              if (!targetDir.startsWith(blogsRoot)) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid target path' }));
+                return;
+              }
+
+              if (!fs.existsSync(targetDir)) {
+                fs.mkdirSync(targetDir, { recursive: true });
+              }
+
+              // Process and inject frontmatter
+              let frontmatter = {};
+              let bodyContent = content || '';
+              const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
+              const fmMatch = bodyContent.match(frontmatterRegex);
+
+              if (fmMatch) {
+                try {
+                  const parsed = yaml.load(fmMatch[1]);
+                  if (parsed && typeof parsed === 'object') {
+                    frontmatter = parsed;
+                  }
+                } catch {}
+                bodyContent = bodyContent.slice(fmMatch[0].length);
+              }
+
+              if (type === 'series') {
+                const seriesDisplayName = cleanSeries
+                  .split(/[-_]+/)
+                  .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                  .join(' ');
+
+                frontmatter.series = seriesDisplayName;
+                frontmatter.seriesPart = episodeNum;
+
+                let totalEpNum = parseInt(totalEpisodes, 10);
+                if (isNaN(totalEpNum) || totalEpNum < 1) {
+                  totalEpNum = episodeNum;
+                }
+                if (totalEpNum < episodeNum) {
+                  totalEpNum = episodeNum;
+                }
+                frontmatter.seriesTotal = totalEpNum;
+
+                // Add episode tag and series tag
+                const epTag = `episode-${episodeNum}`;
+                let tags = Array.isArray(frontmatter.tags) ? frontmatter.tags : [];
+                tags = tags.filter((t) => typeof t === 'string' && !/^episode-\d+$/i.test(t));
+                tags.push(epTag);
+                if (!tags.includes(cleanSeries)) {
+                  tags.unshift(cleanSeries);
+                }
+                frontmatter.tags = tags;
+              } else {
+                // Standalone writeup - remove any series fields
+                delete frontmatter.series;
+                delete frontmatter.seriesPart;
+                delete frontmatter.seriesTotal;
+                if (Array.isArray(frontmatter.tags)) {
+                  frontmatter.tags = frontmatter.tags.filter((t) => typeof t === 'string' && !/^episode-\d+$/i.test(t));
+                }
+              }
+
+              // Ensure title exists
+              if (!frontmatter.title) {
+                const headingMatch = bodyContent.match(/^#\s+(.+)$/m);
+                if (headingMatch) {
+                  frontmatter.title = headingMatch[1].trim();
+                } else {
+                  frontmatter.title = cleanFilename
+                    .replace(/\.(md|mdx)$/i, '')
+                    .replace(/^[0-9]+[-_]?/, '')
+                    .split(/[-_]+/)
+                    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                    .join(' ');
+                }
+              }
+
+              // Ensure pubDate exists
+              if (!frontmatter.pubDate) {
+                frontmatter.pubDate = new Date().toISOString().split('T')[0];
+              }
+
+              // Ensure tags exists
+              if (!Array.isArray(frontmatter.tags) || frontmatter.tags.length === 0) {
+                frontmatter.tags = type === 'series' ? [cleanSeries, `episode-${episodeNum}`] : ['standalone'];
+              }
+
+              const finalContent = `---\n${yaml.dump(frontmatter, { lineWidth: -1 }).trim()}\n---\n\n${bodyContent.trimStart()}`;
+
+              const targetFilePath = path.resolve(targetDir, cleanFilename);
+              fs.writeFileSync(targetFilePath, finalContent, 'utf-8');
+
+              // Synchronize seriesTotal across all files in this series folder
+              if (type === 'series') {
+                try {
+                  const siblingFiles = fs.readdirSync(targetDir).filter((f) => /\.(md|mdx)$/i.test(f));
+                  for (const sib of siblingFiles) {
+                    const sibPath = path.resolve(targetDir, sib);
+                    if (sibPath === targetFilePath) continue;
+                    const sibRaw = fs.readFileSync(sibPath, 'utf-8');
+                    const sibFmMatch = sibRaw.match(frontmatterRegex);
+                    if (sibFmMatch) {
+                      const sibFm = yaml.load(sibFmMatch[1]);
+                      if (sibFm && typeof sibFm === 'object') {
+                        if (sibFm.seriesTotal !== totalEpNum) {
+                          sibFm.seriesTotal = totalEpNum;
+                          const sibBody = sibRaw.slice(sibFmMatch[0].length);
+                          const newSibContent = `---\n${yaml.dump(sibFm, { lineWidth: -1 }).trim()}\n---\n\n${sibBody.trimStart()}`;
+                          fs.writeFileSync(sibPath, newSibContent, 'utf-8');
+                        }
+                      }
+                    }
+                  }
+                } catch {}
+              }
+
+              const relFilePath = `${relDir}/${cleanFilename}`;
+              const rawBase = cleanFilename.replace(/\.(md|mdx)$/i, '');
+              const fileSlug = githubSlug(rawBase);
+              const postSlug = type === 'series'
+                ? `series/${githubSlug(cleanSeries)}/${fileSlug}`
+                : `standalone/${fileSlug}`;
+
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({
+                success: true,
+                message: type === 'series'
+                  ? `Stored in ${relDir}/${cleanFilename} (Series: "${cleanSeries}", Part ${episodeNum} of ${frontmatter.seriesTotal})`
+                  : `Stored in ${relDir}/${cleanFilename}`,
+                filePath: relFilePath,
+                postSlug: postSlug,
+                url: `/blog/${postSlug}`,
+                series: cleanSeries,
+                episode: episodeNum,
+                totalEpisodes: frontmatter.seriesTotal,
+              }));
+            } catch (err) {
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+        } else {
+          res.writeHead(405, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+        }
+      });
+
+      server.middlewares.use('/api/list-blogs', (req, res) => {
+        if (req.method === 'GET') {
+          try {
+            const blogsRoot = path.resolve(process.cwd(), 'Blogs');
+            const blogs = [];
+
+            // Scan standalone directory
+            const standaloneDir = path.join(blogsRoot, 'standalone');
+            if (fs.existsSync(standaloneDir)) {
+              const files = fs.readdirSync(standaloneDir)
+                .filter((f) => /\.(md|mdx)$/i.test(f))
+                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+              for (const file of files) {
+                const filePath = path.join(standaloneDir, file);
+                let title = file.replace(/\.(md|mdx)$/i, '');
+                let date = '';
+                try {
+                  const raw = fs.readFileSync(filePath, 'utf-8');
+                  const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+                  if (fmMatch) {
+                    const parsed = yaml.load(fmMatch[1]);
+                    if (parsed && parsed.title) title = parsed.title;
+                    if (parsed && parsed.pubDate) date = String(parsed.pubDate).split('T')[0];
+                  } else {
+                    const h1 = raw.match(/^#\s+(.+)$/m);
+                    if (h1) title = h1[1].trim();
+                  }
+                } catch {}
+
+                const rawBase = file.replace(/\.(md|mdx)$/i, '');
+                const fileSlug = githubSlug(rawBase);
+                const postSlug = `standalone/${fileSlug}`;
+
+                blogs.push({
+                  type: 'standalone',
+                  relPath: `Blogs/standalone/${file}`,
+                  directory: 'Blogs/standalone',
+                  filename: file,
+                  title,
+                  date,
+                  slug: postSlug,
+                  url: `/blog/${postSlug}`,
+                });
+              }
+            }
+
+            // Scan series directory
+            const seriesDir = path.join(blogsRoot, 'series');
+            if (fs.existsSync(seriesDir)) {
+              const seriesFolders = fs.readdirSync(seriesDir, { withFileTypes: true })
+                .filter((d) => d.isDirectory())
+                .map((d) => d.name)
+                .sort();
+
+              for (const folder of seriesFolders) {
+                const folderPath = path.join(seriesDir, folder);
+                const files = fs.readdirSync(folderPath)
+                  .filter((f) => /\.(md|mdx)$/i.test(f))
+                  .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+                for (let i = 0; i < files.length; i++) {
+                  const file = files[i];
+                  const filePath = path.join(folderPath, file);
+                  let epNum = getFileEpisode(filePath, file);
+                  if (epNum === null) epNum = i + 1;
+                  let title = file.replace(/\.(md|mdx)$/i, '');
+                  let date = '';
+
+                  let totalEpCount = epNum;
+                  try {
+                    const raw = fs.readFileSync(filePath, 'utf-8');
+                    const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+                    if (fmMatch) {
+                      const parsed = yaml.load(fmMatch[1]);
+                      if (parsed && parsed.title) title = parsed.title;
+                      if (parsed && parsed.pubDate) date = String(parsed.pubDate).split('T')[0];
+                      if (parsed && parsed.seriesTotal) {
+                        const st = parseInt(parsed.seriesTotal, 10);
+                        if (!isNaN(st)) totalEpCount = st;
+                      }
+                    } else {
+                      const h1 = raw.match(/^#\s+(.+)$/m);
+                      if (h1) title = h1[1].trim();
+                    }
+                  } catch {}
+
+                  const rawBase = file.replace(/\.(md|mdx)$/i, '');
+                  const folderSlug = githubSlug(folder);
+                  const fileSlug = githubSlug(rawBase);
+                  const postSlug = `series/${folderSlug}/${fileSlug}`;
+
+                  blogs.push({
+                    type: 'series',
+                    seriesName: folder,
+                    relPath: `Blogs/series/${folder}/${file}`,
+                    directory: `Blogs/series/${folder}`,
+                    filename: file,
+                    episode: epNum,
+                    totalEpisodes: totalEpCount,
+                    title,
+                    date,
+                    slug: postSlug,
+                    url: `/blog/${postSlug}`,
+                  });
+                }
+              }
+            }
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, blogs }));
+          } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        } else {
+          res.writeHead(405, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+        }
+      });
+
+      server.middlewares.use('/api/delete-blog', (req, res) => {
+        if (req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk) => {
+            body += chunk;
+          });
+          req.on('end', () => {
+            try {
+              const { relPath } = JSON.parse(body);
+              if (!relPath || typeof relPath !== 'string') {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Missing or invalid file path' }));
+                return;
+              }
+
+              // Normalize and security check path
+              const normalized = path.normalize(relPath).replace(/\\/g, '/');
+              if (
+                (!normalized.startsWith('Blogs/standalone/') && !normalized.startsWith('Blogs/series/')) ||
+                normalized.includes('..') ||
+                !/\.(md|mdx)$/i.test(normalized)
+              ) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Access denied: Path must be a .md or .mdx file inside Blogs/standalone or Blogs/series' }));
+                return;
+              }
+
+              const absolutePath = path.resolve(process.cwd(), normalized);
+              const blogsRoot = path.resolve(process.cwd(), 'Blogs');
+
+              if (!absolutePath.startsWith(blogsRoot)) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Access denied outside Blogs directory' }));
+                return;
+              }
+
+              if (!fs.existsSync(absolutePath)) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: `File not found on disk: ${normalized}` }));
+                return;
+              }
+
+              const stat = fs.statSync(absolutePath);
+              if (stat.isDirectory()) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Cannot delete directory; only files may be deleted' }));
+                return;
+              }
+
+              // Delete only the file alone, keeping parent folder and siblings untouched!
+              fs.unlinkSync(absolutePath);
+
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({
+                success: true,
+                message: `Successfully deleted file "${path.basename(normalized)}" from repository. Directory structure preserved.`,
+                deletedPath: normalized,
+              }));
+            } catch (err) {
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+        } else {
+          res.writeHead(405, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+        }
+      });
+
     },
   };
 }
 
+let siteUrl = 'https://example.com';
+try {
+  const profileRaw = fs.readFileSync(path.resolve(process.cwd(), 'profile.json'), 'utf-8');
+  const profileData = JSON.parse(profileRaw);
+  if (profileData.siteUrl && profileData.siteUrl.trim()) {
+    let raw = profileData.siteUrl.trim();
+    if (!/^https?:\/\//i.test(raw)) {
+      raw = `https://${raw}`;
+    }
+    new URL(raw);
+    siteUrl = raw;
+  }
+} catch {}
+
 // https://astro.build/config
 export default defineConfig({
-  // USER: Change this to your actual GitHub Pages URL, e.g. https://yourusername.github.io
-  site: 'https://harish.github.io',
+  site: siteUrl,
   output: 'static',
+  devToolbar: {
+    enabled: false,
+  },
   integrations: [
     mdx({
       syntaxHighlight: 'shiki',

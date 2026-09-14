@@ -23,7 +23,7 @@ const { changelog } = Astro.props;
     <!-- Popover box -->
     <div
       id="changelog-popover-box"
-      class="hidden absolute left-0 top-full mt-2 w-[340px] sm:w-[460px] bg-surface-container-low border border-outline-variant rounded-[2px] p-3 shadow-none z-30 font-mono text-[12px]"
+      class="hidden absolute left-0 top-full mt-2 w-[340px] sm:w-[460px] max-w-[calc(100vw-2rem)] bg-surface-container-low border border-outline-variant rounded-[2px] p-3 shadow-none z-30 font-mono text-[12px]"
     >
       <div class="flex items-center justify-between pb-2 mb-2 border-b border-outline-variant">
         <div class="flex items-center gap-1.5">
@@ -47,7 +47,7 @@ const { changelog } = Astro.props;
             <div class="text-[11px] text-primary font-bold">
               # {formatChangelogDate(entry.date)}
             </div>
-            <p class="text-[12px] text-on-surface-variant leading-relaxed">
+            <p class="text-[12px] text-on-surface-variant leading-relaxed break-words">
               {entry.summary}
             </p>
             {entry.diff && (

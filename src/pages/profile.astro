@@ -1,12 +1,262 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="refresh" content="0;url=/about" />
-    <title>Redirecting to Author Profile...</title>
-    <link rel="canonical" href="/about" />
-  </head>
-  <body>
-    <p>Redirecting to <a href="/about">Author Profile</a>...</p>
-  </body>
-</html>
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import PostCard from '@/components/PostCard.astro';
+import TagBadge from '@/components/TagBadge.astro';
+import ProfileEditor from '@/components/ProfileEditor.astro';
+import BlogUploader from '@/components/BlogUploader.astro';
+import { siteConfig } from '@/site.config';
+import { getReadingTime } from '@/lib/reading-time';
+
+// Strictly fetch all published posts from repository, identical to index.astro
+const userPosts = await getCollection('blog', ({ data }) => !data.draft);
+userPosts.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
+
+// Compute user's blog stats directly from published articles
+const totalPosts = userPosts.length;
+const totalWords = userPosts.reduce((acc, post) => acc + (post.data.words || getReadingTime(post.body || '').words), 0);
+
+// Author's blog series
+const seriesMap = new Map<string, { total: number; posts: typeof userPosts }>();
+userPosts.forEach((post) => {
+  if (post.data.series) {
+    if (!seriesMap.has(post.data.series)) {
+      seriesMap.set(post.data.series, { total: post.data.seriesTotal || 0, posts: [] });
+    }
+    const current = seriesMap.get(post.data.series)!;
+    if (post.data.seriesTotal && post.data.seriesTotal > current.total) {
+      current.total = post.data.seriesTotal;
+    }
+    current.posts.push(post);
+  }
+});
+
+// Author's topics/tags with counts
+const tagCounts: Record<string, number> = {};
+userPosts.forEach((post) => {
+  (post.data.tags || []).forEach((tag) => {
+    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+  });
+});
+const authorTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+---
+
+<BaseLayout title="Profile" activePath="/profile">
+  <div class="max-w-[720px] mx-auto px-4 md:px-0 py-8 font-mono">
+    <div class="flex flex-col space-y-10">
+      <!-- Terminal Prompt Context & Dynamic Profile Actions -->
+      <section class="flex flex-col space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2 text-primary text-[13px]">
+            <span class="font-bold">$</span>
+            <span class="text-on-surface">whoami --profile</span>
+          </div>
+          <ProfileEditor />
+        </div>
+        <h1 class="text-[26px] sm:text-[28px] text-on-surface font-semibold tracking-tight">
+          Author Profile
+        </h1>
+      </section>
+
+      <!-- Profile Header Block -->
+      <section class="flex flex-col sm:flex-row gap-6 items-start p-4 bg-surface-container-low border border-outline-variant rounded-[2px]">
+        <!-- Avatar / Logo Container (Uploadable in localhost only, stored in repo) -->
+        <div class="relative group/logo shrink-0" id="profile-avatar-wrapper">
+          <div
+            id="profile-avatar-box"
+            class="w-[100px] h-[100px] bg-surface-container border border-outline-variant relative overflow-hidden select-none flex flex-col items-center justify-center rounded-[2px]"
+          >
+            <img
+              id="profile-avatar-img"
+              src={siteConfig.avatar || siteConfig.logo || ''}
+              alt={`${siteConfig.author} Logo`}
+              class={`w-full h-full object-cover ${siteConfig.avatar || siteConfig.logo ? '' : 'hidden'}`}
+              data-profile-logo-img
+            />
+            <div
+              id="profile-avatar-fallback"
+              class={`flex flex-col items-center justify-center w-full h-full p-2 ${siteConfig.avatar || siteConfig.logo ? 'hidden' : ''}`}
+              data-profile-logo-fallback
+            >
+              <span class="text-primary text-[32px] font-bold leading-none">&gt;_</span>
+              <span class="text-primary font-semibold text-[11px] mt-1.5 truncate max-w-full" data-profile-handle>{siteConfig.handle}</span>
+            </div>
+          </div>
+
+          <!-- Localhost Upload Overlay Trigger (Strictly visible & active in localhost only) -->
+          <button
+            type="button"
+            id="logo-upload-overlay-btn"
+            class="hidden absolute inset-0 bg-black/75 backdrop-blur-[2px] opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity cursor-pointer flex-col items-center justify-center text-center p-1 font-mono text-white rounded-[2px] border border-primary z-10"
+            title="Upload new logo to repository (Localhost only)"
+          >
+            <span class="text-primary text-[16px] leading-none">📷</span>
+            <span class="font-semibold text-primary text-[10px] mt-1">Upload Logo</span>
+            <span class="text-[9px] text-outline">[localhost]</span>
+          </button>
+
+          <!-- Hidden File Input for Direct Logo Upload -->
+          <input
+            type="file"
+            id="direct-logo-file-input"
+            accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+            class="hidden"
+          />
+        </div>
+
+        <!-- Author Bio & Coordinates -->
+        <div class="flex flex-col space-y-3 flex-1 text-[13px] text-on-surface-variant leading-relaxed">
+          <div>
+            <h2 class="text-[18px] text-on-surface font-semibold tracking-tight break-words" data-profile-author>
+              {siteConfig.author || siteConfig.handle || 'User'}
+            </h2>
+            <p class={`text-[12px] text-primary mt-0.5 ${siteConfig.role ? '' : 'hidden'}`} data-profile-role>
+              {siteConfig.role}
+            </p>
+          </div>
+
+          <p class={`break-words ${siteConfig.description ? '' : 'text-outline italic text-[12px]'}`} data-profile-bio>
+            {siteConfig.description || 'No description provided yet.'}
+          </p>
+
+          <div class="flex flex-wrap items-center gap-3 pt-1 text-[12px]">
+            <a
+              href={siteConfig.githubUrl || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              class={`text-on-surface hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1 font-medium ${siteConfig.githubUrl ? '' : 'hidden'}`}
+              data-profile-github-link
+            >
+              <span data-profile-github-text>GitHub: {siteConfig.handle}</span>
+            </a>
+            <span class={`text-outline ${siteConfig.githubUrl && siteConfig.twitterUrl ? '' : 'hidden'}`} data-profile-sep-1>·</span>
+            <a
+              href={siteConfig.twitterUrl || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              class={`text-on-surface hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1 font-medium ${siteConfig.twitterUrl ? '' : 'hidden'}`}
+              data-profile-twitter-link
+            >
+              <span data-profile-twitter-text>Twitter: {siteConfig.twitterHandle}</span>
+            </a>
+            <span class={`text-outline ${(siteConfig.githubUrl || siteConfig.twitterUrl) && siteConfig.email ? '' : 'hidden'}`} data-profile-sep-2>·</span>
+            <a
+              href={siteConfig.email ? `mailto:${siteConfig.email}` : '#'}
+              class={`text-on-surface hover:text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1 font-medium ${siteConfig.email ? '' : 'hidden'}`}
+              data-profile-email-link
+            >
+              <span data-profile-email-text>{siteConfig.email}</span>
+            </a>
+            {(siteConfig.githubUrl || siteConfig.twitterUrl || siteConfig.email) && <span class="text-outline">·</span>}
+            <a
+              href="/feed.xml"
+              class="text-primary hover:underline underline-offset-4 transition-colors flex items-center gap-1 font-medium"
+            >
+              <span>RSS Feed</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Localhost Blog Uploader Section & Command Modal -->
+      <BlogUploader />
+
+      <!-- Blog Telemetry & Activity Stats -->
+      <section class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[12px]">
+        <div class="p-3 bg-surface-container-lowest border border-outline-variant">
+          <div class="text-[10px] text-outline uppercase tracking-wider">Articles</div>
+          <div class="text-[18px] text-primary font-bold mt-1">{totalPosts}</div>
+        </div>
+        <div class="p-3 bg-surface-container-lowest border border-outline-variant">
+          <div class="text-[10px] text-outline uppercase tracking-wider">Series</div>
+          <div class="text-[18px] text-on-surface font-bold mt-1">{seriesMap.size}</div>
+        </div>
+        <div class="p-3 bg-surface-container-lowest border border-outline-variant">
+          <div class="text-[10px] text-outline uppercase tracking-wider">Topics</div>
+          <div class="text-[18px] text-on-surface font-bold mt-1">{authorTags.length}</div>
+        </div>
+        <div class="p-3 bg-surface-container-lowest border border-outline-variant">
+          <div class="text-[10px] text-outline uppercase tracking-wider">Total Words</div>
+          <div class="text-[18px] text-outline font-bold mt-1">~{totalWords.toLocaleString()}</div>
+        </div>
+      </section>
+
+      <!-- Author's Blog Series -->
+      {seriesMap.size > 0 && (
+        <section class="space-y-4 pt-4 border-t border-outline-variant">
+          <div class="flex items-center gap-2 text-[11px] text-outline uppercase tracking-wider">
+            <span class="text-primary font-bold">&gt;</span>
+            <span>Featured Writing Series</span>
+          </div>
+
+          <div class="space-y-3">
+            {[...seriesMap.entries()].map(([seriesName, data]) => (
+              <div class="p-3 bg-surface-container-low border border-outline-variant rounded-[2px] space-y-2">
+                <div class="flex items-center justify-between text-[12px] gap-2">
+                  <span class="text-on-surface font-semibold break-words">'{seriesName}'</span>
+                  <span class="text-outline text-[11px] shrink-0">
+                    {data.posts.length} {data.posts.length === 1 ? 'part' : 'parts'} published
+                    {data.total > data.posts.length ? ` (${data.posts.length}/${data.total} total)` : ''}
+                  </span>
+                </div>
+                <div class="flex flex-wrap gap-2 pt-1">
+                  {data.posts
+                    .sort((a, b) => (a.data.seriesPart || 0) - (b.data.seriesPart || 0))
+                    .map((p) => {
+                      const slug = p.id.replace(/\.(md|mdx)$/, '');
+                      const totalPart = p.data.seriesTotal || data.total;
+                      return (
+                        <a
+                          href={`/blog/${slug}`}
+                          class="px-2 py-1 bg-surface-container border border-outline-variant hover:border-primary text-on-surface-variant hover:text-primary text-[11px] rounded-[2px] transition-colors flex items-center gap-1.5"
+                        >
+                          <span class="text-primary font-bold">[{p.data.seriesPart}{totalPart ? `/${totalPart}` : ''}]</span>
+                          <span class="truncate max-w-[200px] sm:max-w-[300px]">{p.data.title}</span>
+                        </a>
+                      );
+                    })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <!-- Topics Covered by this Author -->
+      <section class="space-y-4 pt-4 border-t border-outline-variant">
+        <div class="flex items-center justify-between text-[11px] text-outline uppercase tracking-wider">
+          <div class="flex items-center gap-2">
+            <span class="text-primary font-bold">&gt;</span>
+            <span>Topics &amp; Tags</span>
+          </div>
+          <button type="button" data-open-search class="text-primary hover:underline lowercase font-mono cursor-pointer">
+            [search topics &amp; tags]
+          </button>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          {authorTags.map(([tag, count]) => (
+            <TagBadge tag={tag} count={count} size="md" />
+          ))}
+        </div>
+      </section>
+
+      <!-- Author's Blog Articles Feed -->
+      <section class="space-y-4 pt-4 border-t border-outline-variant">
+        <div class="flex items-center justify-between text-[11px] text-outline uppercase tracking-wider">
+          <div class="flex items-center gap-2">
+            <span class="text-primary font-bold">&gt;</span>
+            <span data-profile-posts-author>{siteConfig.author && siteConfig.author !== 'Author' ? `Published Posts by ${siteConfig.author}` : 'Published Posts'}</span>
+          </div>
+          <span class="text-outline font-mono text-[11px]">{userPosts.length} entries</span>
+        </div>
+
+        <div class="flex flex-col space-y-6">
+          {userPosts.map((post, idx) => (
+            <PostCard post={post} showDivider={idx > 0} />
+          ))}
+        </div>
+      </section>
+    </div>
+  </div>
+</BaseLayout>

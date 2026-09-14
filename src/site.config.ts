@@ -9,14 +9,17 @@ export interface GiscusConfig {
 }
 
 export interface SiteConfig {
+  name: string;
   author: string;
+  githubUsername: string;
   handle: string;
+  avatar?: string;
+  logo?: string;
   role: string;
   twitterHandle: string;
   title: string;
   description: string;
   siteUrl: string;
-  pgpKey: string;
   githubUrl: string;
   twitterUrl: string;
   email: string;
@@ -24,22 +27,38 @@ export interface SiteConfig {
   giscus: GiscusConfig;
 }
 
+function extractGithubUsername(githubUrl?: string, handle?: string): string {
+  if (githubUrl) {
+    const match = githubUrl.match(/github\.com\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) return match[1];
+  }
+  if (handle) {
+    return handle.replace(/^@/, '');
+  }
+  return '';
+}
+
+const githubUsername = extractGithubUsername(profileData.githubUrl, profileData.handle);
+
 export const siteConfig: SiteConfig = {
-  author: profileData.author || "Harish",
-  handle: profileData.handle || "@harishkannanjs",
-  role: profileData.role || "Security Researcher & Systems Developer",
-  twitterHandle: profileData.twitterHandle || "@harishkannanjs",
-  title: profileData.title || "Harish // Terminal Blog",
-  description: profileData.description || "Security research, vulnerability analysis, and low-level systems development.",
-  siteUrl: profileData.siteUrl || "https://harish.github.io",
-  pgpKey: profileData.pgpKey || "0x4E89F19C2D4A88B1EE4089C91427AF10C9347890",
-  githubUrl: profileData.githubUrl || "https://github.com/harishkannanjs",
-  twitterUrl: profileData.twitterUrl || "https://x.com/harishkannanjs",
-  email: profileData.email || "harish@research.local",
+  name: "glyph.sh",
+  author: profileData.author || "Author",
+  githubUsername: githubUsername || "user",
+  handle: profileData.handle || (githubUsername ? `@${githubUsername}` : "@user"),
+  avatar: (profileData as any).avatar || (profileData as any).logo || '',
+  logo: (profileData as any).logo || (profileData as any).avatar || '',
+  role: profileData.role || "",
+  twitterHandle: profileData.twitterHandle || "",
+  title: profileData.title || "glyph.sh",
+  description: profileData.description || "",
+  siteUrl: profileData.siteUrl || "https://example.com",
+  githubUrl: profileData.githubUrl || "",
+  twitterUrl: profileData.twitterUrl || "",
+  email: profileData.email || "",
   postsPerPage: profileData.postsPerPage || 10,
   giscus: (profileData as any).giscus || {
-    enabled: true,
-    repo: "harishkannanjs/blog",
+    enabled: false,
+    repo: "",
     repoId: "",
     category: "General",
     categoryId: "",

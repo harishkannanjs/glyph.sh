@@ -2,23 +2,26 @@
 import { siteConfig } from '@/site.config';
 
 const currentProfile = {
-  author: siteConfig.author,
-  handle: siteConfig.handle,
-  role: siteConfig.role || "Security Researcher & Systems Developer",
-  twitterHandle: siteConfig.twitterHandle,
-  title: siteConfig.title,
-  description: siteConfig.description,
-  siteUrl: siteConfig.siteUrl,
-  pgpKey: siteConfig.pgpKey,
-  githubUrl: siteConfig.githubUrl,
-  twitterUrl: siteConfig.twitterUrl,
-  email: siteConfig.email,
+  author: siteConfig.author !== 'Author' ? siteConfig.author : '',
+  handle: siteConfig.handle !== '@user' ? siteConfig.handle : '',
+  avatar: siteConfig.avatar || siteConfig.logo || '',
+  logo: siteConfig.logo || siteConfig.avatar || '',
+  role: siteConfig.role || '',
+  twitterHandle: siteConfig.twitterHandle || '',
+  title: siteConfig.title || '',
+  description: siteConfig.description || '',
+  siteUrl: siteConfig.siteUrl !== 'https://example.com' ? siteConfig.siteUrl : '',
+  githubUrl: siteConfig.githubUrl || '',
+  twitterUrl: siteConfig.twitterUrl || '',
+  email: siteConfig.email || '',
   postsPerPage: siteConfig.postsPerPage || 10,
+  giscus: siteConfig.giscus,
 };
 ---
 
-<!-- Profile Editor Toolbar Actions -->
-<div class="flex items-center gap-2 font-mono">
+<!-- Localhost Dev Mode Toolbar (Visible ONLY in local development) -->
+<div id="profile-dev-toolbar" class="hidden items-center gap-2 font-mono">
+  <span class="text-primary text-[10px] font-bold px-1.5 py-0.5 bg-primary/10 border border-primary/30 rounded-[2px] hidden sm:inline">[DEV // LOCALHOST]</span>
   <button
     id="edit-profile-btn"
     type="button"
@@ -55,6 +58,7 @@ const currentProfile = {
 <div
   id="profile-editor-modal"
   class="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 hidden font-mono"
+  style="display: none;"
   role="dialog"
   aria-modal="true"
   aria-labelledby="editor-title"
@@ -83,7 +87,55 @@ const currentProfile = {
     <!-- Terminal Editor Body / Form -->
     <form id="profile-editor-form" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-[12px]">
       <div class="p-2.5 bg-surface-container-lowest border border-outline-variant text-[11px] text-on-surface-variant leading-relaxed">
-        <span class="text-primary font-bold"># REPOSITORY STORAGE:</span> Profile details are stored directly in <code class="text-primary">profile.json</code> within your GitHub repository. In local development (<code class="text-primary">bun run dev</code>), saving writes directly to <code class="text-primary">profile.json</code> on disk. When hosting on GitHub, commit <code class="text-primary">profile.json</code> to your repo to publish changes to your <code class="text-primary">github.io</code> blog.
+        <span class="text-primary font-bold"># LOCAL DEV MODE:</span> All details are stored directly in <code class="text-primary">profile.json</code> in your repository. Saving updates your preview and exports the configuration to commit to Git.
+      </div>
+
+      <!-- Logo / Avatar Upload & Repository Sync Card -->
+      <div class="p-3 bg-surface-container-low border border-outline-variant rounded-[2px] flex items-center justify-between gap-4 flex-wrap">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 shrink-0 bg-surface-container border border-outline-variant relative overflow-hidden flex items-center justify-center rounded-[2px]">
+            <img
+              id="modal-logo-preview-img"
+              src={currentProfile.avatar || ''}
+              alt="Logo Preview"
+              class={`w-full h-full object-cover ${currentProfile.avatar ? '' : 'hidden'}`}
+            />
+            <div
+              id="modal-logo-preview-fallback"
+              class={`flex flex-col items-center justify-center text-primary text-[14px] font-bold ${currentProfile.avatar ? 'hidden' : ''}`}
+            >
+              &gt;_
+            </div>
+          </div>
+          <div class="flex flex-col space-y-0.5">
+            <span class="text-on-surface font-semibold text-[12px]">Profile / Author Logo</span>
+            <span class="text-outline text-[10px]">Saved to repository at <code class="text-primary font-mono">public/profile-logo.*</code></span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <input
+            type="file"
+            id="modal-logo-file-input"
+            accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+            class="hidden"
+          />
+          <button
+            type="button"
+            id="modal-upload-logo-btn"
+            class="px-2.5 py-1 bg-surface-container border border-outline-variant hover:border-primary text-primary text-[11px] rounded-[2px] cursor-pointer transition-colors font-medium"
+          >
+            Upload Logo
+          </button>
+          <button
+            type="button"
+            id="modal-remove-logo-btn"
+            class="px-2 py-1 bg-surface-container border border-outline-variant hover:border-error text-outline hover:text-error text-[11px] rounded-[2px] cursor-pointer transition-colors"
+            title="Remove logo and use terminal >_ fallback"
+          >
+            Remove
+          </button>
+        </div>
       </div>
 
       <!-- Two-column Grid of Profile Inputs -->
@@ -99,134 +151,163 @@ const currentProfile = {
             id="prof-author"
             name="author"
             required
-            class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px]"
-            placeholder="e.g. Harish"
+            class="bg-surface-container-lowest border border-outline-variant focus:border-primary px-2.5 py-1.5 rounded-[2px] font-mono text-[12px] text-on-surface focus:outline-none placeholder:text-outline"
+            placeholder="e.g. Alex Doe"
           />
         </div>
 
-        <!-- Handle -->
+        <!-- Terminal Handle -->
         <div class="flex flex-col space-y-1">
           <label for="prof-handle" class="text-[11px] text-outline uppercase tracking-wider flex justify-between">
             <span>author.handle</span>
-            <span class="text-primary font-bold">*</span>
+            <span class="text-outline text-[10px]">(@username)</span>
           </label>
           <input
             type="text"
             id="prof-handle"
             name="handle"
-            required
-            class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px]"
-            placeholder="e.g. @harish"
+            class="bg-surface-container-lowest border border-outline-variant focus:border-primary px-2.5 py-1.5 rounded-[2px] font-mono text-[12px] text-on-surface focus:outline-none placeholder:text-outline"
+            placeholder="e.g. @alex"
           />
         </div>
 
-        <!-- Professional Role / Subtitle -->
+        <!-- Role / Title -->
         <div class="flex flex-col space-y-1 sm:col-span-2">
           <label for="prof-role" class="text-[11px] text-outline uppercase tracking-wider">
-            <span>author.role</span>
+            author.role
           </label>
           <input
             type="text"
             id="prof-role"
             name="role"
-            class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px]"
-            placeholder="e.g. Security Researcher & Systems Developer"
+            class="bg-surface-container-lowest border border-outline-variant focus:border-primary px-2.5 py-1.5 rounded-[2px] font-mono text-[12px] text-on-surface focus:outline-none placeholder:text-outline"
+            placeholder="e.g. Software Engineer, Designer, Writer, Researcher"
           />
         </div>
 
         <!-- Bio / Description -->
         <div class="flex flex-col space-y-1 sm:col-span-2">
-          <label for="prof-description" class="text-[11px] text-outline uppercase tracking-wider flex justify-between">
-            <span>author.bio</span>
-            <span id="prof-bio-count" class="text-outline text-[10px]">0 chars</span>
-          </label>
+          <div class="flex justify-between items-center text-[11px] text-outline uppercase tracking-wider">
+            <label for="prof-description">author.description</label>
+            <span id="prof-bio-count" class="text-[10px] text-outline">0 chars</span>
+          </div>
           <textarea
             id="prof-description"
             name="description"
-            rows="3"
-            class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none p-2.5 text-on-surface text-[12px] rounded-[2px] resize-y leading-relaxed"
-            placeholder="Brief bio or research summary..."
+            rows="2"
+            class="bg-surface-container-lowest border border-outline-variant focus:border-primary px-2.5 py-1.5 rounded-[2px] font-mono text-[12px] text-on-surface focus:outline-none placeholder:text-outline resize-none"
+            placeholder="Brief description about yourself, your work, and your projects."
           ></textarea>
         </div>
 
-        <!-- GitHub Handle / URL -->
+        <!-- Website / Site URL -->
+        <div class="flex flex-col space-y-1 sm:col-span-2">
+          <label for="prof-siteurl" class="text-[11px] text-outline uppercase tracking-wider">
+            author.siteUrl
+          </label>
+          <input
+            type="text"
+            id="prof-siteurl"
+            name="siteUrl"
+            class="bg-surface-container-lowest border border-outline-variant focus:border-primary px-2.5 py-1.5 rounded-[2px] font-mono text-[12px] text-on-surface focus:outline-none placeholder:text-outline"
+            placeholder="https://yourusername.github.io"
+          />
+        </div>
+
+        <!-- GitHub URL -->
         <div class="flex flex-col space-y-1">
           <label for="prof-github" class="text-[11px] text-outline uppercase tracking-wider">
-            <span>author.github</span>
+            author.github
           </label>
           <input
             type="text"
             id="prof-github"
-            name="github"
-            class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px]"
-            placeholder="Username or https://github.com/..."
+            name="githubUrl"
+            class="bg-surface-container-lowest border border-outline-variant focus:border-primary px-2.5 py-1.5 rounded-[2px] font-mono text-[12px] text-on-surface focus:outline-none placeholder:text-outline"
+            placeholder="https://github.com/username"
           />
         </div>
 
-        <!-- Twitter / X Handle / URL -->
+        <!-- Twitter / X URL -->
         <div class="flex flex-col space-y-1">
           <label for="prof-twitter" class="text-[11px] text-outline uppercase tracking-wider">
-            <span>author.twitter</span>
+            author.twitter
           </label>
           <input
             type="text"
             id="prof-twitter"
-            name="twitter"
-            class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px]"
-            placeholder="@handle or https://x.com/..."
+            name="twitterUrl"
+            class="bg-surface-container-lowest border border-outline-variant focus:border-primary px-2.5 py-1.5 rounded-[2px] font-mono text-[12px] text-on-surface focus:outline-none placeholder:text-outline"
+            placeholder="https://x.com/username"
           />
         </div>
 
-        <!-- Email -->
+        <!-- Email Address -->
         <div class="flex flex-col space-y-1">
           <label for="prof-email" class="text-[11px] text-outline uppercase tracking-wider">
-            <span>author.email</span>
+            author.email
           </label>
           <input
             type="email"
             id="prof-email"
             name="email"
-            class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px]"
-            placeholder="e.g. harish@research.local"
+            class="bg-surface-container-lowest border border-outline-variant focus:border-primary px-2.5 py-1.5 rounded-[2px] font-mono text-[12px] text-on-surface focus:outline-none placeholder:text-outline"
+            placeholder="e.g. you@example.com"
           />
         </div>
 
+        <!-- Giscus Comments Configuration -->
+        <div class="flex flex-col space-y-2 sm:col-span-2 pt-2 border-t border-outline-variant">
+          <div class="flex justify-between items-center text-[11px] text-outline uppercase tracking-wider">
+            <span class="text-primary font-semibold">giscus.comments (GitHub Discussions)</span>
+            <a href="https://giscus.app" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline lowercase">
+              [get IDs on giscus.app ↗]
+            </a>
+          </div>
 
-
-        <!-- PGP Key Fingerprint -->
-        <div class="flex flex-col space-y-1 sm:col-span-2">
-          <label for="prof-pgp" class="text-[11px] text-outline uppercase tracking-wider">
-            <span>security.pgpKey</span>
-          </label>
-          <input
-            type="text"
-            id="prof-pgp"
-            name="pgp"
-            class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary focus:outline-none px-2.5 py-1.5 text-on-surface text-[12px] rounded-[2px] font-mono"
-            placeholder="0x4E89F19C2D4A88B1EE4089C91427AF10C9347890"
-          />
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="flex flex-col space-y-1">
+              <label for="prof-giscus-repo" class="text-[10px] text-outline uppercase tracking-wider">giscus.repo</label>
+              <input
+                type="text"
+                id="prof-giscus-repo"
+                name="giscusRepo"
+                class="bg-surface-container-lowest border border-outline-variant focus:border-primary px-2.5 py-1.5 rounded-[2px] font-mono text-[12px] text-on-surface focus:outline-none placeholder:text-outline"
+                placeholder="e.g. username/blog"
+              />
+            </div>
+            <div class="flex flex-col space-y-1">
+              <label for="prof-giscus-repoid" class="text-[10px] text-outline uppercase tracking-wider">giscus.repoId</label>
+              <input
+                type="text"
+                id="prof-giscus-repoid"
+                name="giscusRepoId"
+                class="bg-surface-container-lowest border border-outline-variant focus:border-primary px-2.5 py-1.5 rounded-[2px] font-mono text-[12px] text-on-surface focus:outline-none placeholder:text-outline"
+                placeholder="e.g. R_kgD..."
+              />
+            </div>
+            <div class="flex flex-col space-y-1">
+              <label for="prof-giscus-category" class="text-[10px] text-outline uppercase tracking-wider">giscus.category</label>
+              <input
+                type="text"
+                id="prof-giscus-category"
+                name="giscusCategory"
+                class="bg-surface-container-lowest border border-outline-variant focus:border-primary px-2.5 py-1.5 rounded-[2px] font-mono text-[12px] text-on-surface focus:outline-none placeholder:text-outline"
+                placeholder="e.g. General"
+              />
+            </div>
+            <div class="flex flex-col space-y-1">
+              <label for="prof-giscus-categoryid" class="text-[10px] text-outline uppercase tracking-wider">giscus.categoryId</label>
+              <input
+                type="text"
+                id="prof-giscus-categoryid"
+                name="giscusCategoryId"
+                class="bg-surface-container-lowest border border-outline-variant focus:border-primary px-2.5 py-1.5 rounded-[2px] font-mono text-[12px] text-on-surface focus:outline-none placeholder:text-outline"
+                placeholder="e.g. DIC_kwD..."
+              />
+            </div>
+          </div>
         </div>
-      </div>
-
-      <!-- Backup / Export Tools -->
-      <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-outline-variant text-[11px]">
-        <div class="flex items-center gap-2">
-          <button
-            type="button"
-            id="prof-download-json-btn"
-            class="px-2 py-1 bg-surface-container border border-outline-variant hover:border-outline text-on-surface-variant hover:text-on-surface rounded-[2px] transition-colors cursor-pointer"
-          >
-            ⤓ Download profile.json
-          </button>
-          <button
-            type="button"
-            id="prof-copy-json-btn"
-            class="px-2 py-1 bg-surface-container border border-outline-variant hover:border-outline text-on-surface-variant hover:text-on-surface rounded-[2px] transition-colors cursor-pointer"
-          >
-            ⎘ Copy JSON
-          </button>
-        </div>
-        <span class="text-outline text-[10px]">Saved to repository profile.json</span>
       </div>
 
       <!-- Modal Actions Footer -->
@@ -254,6 +335,7 @@ const currentProfile = {
 <div
   id="profile-export-modal"
   class="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 hidden font-mono"
+  style="display: none;"
   role="dialog"
   aria-modal="true"
   aria-labelledby="export-title"
@@ -278,7 +360,7 @@ const currentProfile = {
 
     <div class="p-4 sm:p-5 flex-1 overflow-y-auto space-y-3 text-[12px]">
       <p class="text-[11px] text-outline">
-        This file is stored in your repository at <code class="text-primary">profile.json</code>. Commit any changes to Git to update your <code class="text-primary">github.io</code> blog:
+        This file is stored in your repository at <code class="text-primary">profile.json</code>. Commit any changes to Git to publish to your <code class="text-primary">github.io</code> blog:
       </p>
 
       <div class="relative group">
@@ -287,6 +369,13 @@ const currentProfile = {
     </div>
 
     <div class="flex items-center justify-end gap-2 px-4 py-3 bg-surface-container border-t border-outline-variant">
+      <button
+        type="button"
+        id="prof-download-json-btn"
+        class="px-3 py-1.5 bg-surface-container border border-outline-variant hover:border-outline text-on-surface text-[11px] rounded-[2px] cursor-pointer transition-colors"
+      >
+        Download JSON
+      </button>
       <button
         type="button"
         id="close-export-btn-2"
@@ -309,6 +398,23 @@ const currentProfile = {
 <script is:inline define:vars={{ currentProfile }}>
   (function () {
     let profile = { ...currentProfile };
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+    function updateAccessUI() {
+      const devToolbar = document.getElementById('profile-dev-toolbar');
+      const logoUploadOverlayBtn = document.getElementById('logo-upload-overlay-btn');
+      if (isDev) {
+        devToolbar?.classList.remove('hidden');
+        devToolbar?.classList.add('flex');
+        logoUploadOverlayBtn?.classList.remove('hidden');
+        logoUploadOverlayBtn?.classList.add('flex');
+      } else {
+        devToolbar?.classList.add('hidden');
+        devToolbar?.classList.remove('flex');
+        logoUploadOverlayBtn?.classList.add('hidden');
+        logoUploadOverlayBtn?.classList.remove('flex');
+      }
+    }
 
     function showToast(message, isError = false) {
       const toast = document.getElementById('profile-toast');
@@ -331,6 +437,61 @@ const currentProfile = {
     function applyProfile(p) {
       profile = { ...p };
 
+      // Update Avatar / Logo Image & Fallback
+      const hasLogo = Boolean(p.avatar || p.logo);
+      const logoSrc = p.avatar || p.logo || '';
+
+      document.querySelectorAll('[data-profile-logo-img]').forEach((el) => {
+        if (hasLogo) {
+          el.src = logoSrc;
+          el.classList.remove('hidden');
+        } else {
+          el.src = '';
+          el.classList.add('hidden');
+        }
+      });
+
+      document.querySelectorAll('[data-profile-logo-fallback]').forEach((el) => {
+        if (hasLogo) {
+          el.classList.add('hidden');
+        } else {
+          el.classList.remove('hidden');
+        }
+      });
+
+      // Update Modal Preview
+      const modalLogoImg = document.getElementById('modal-logo-preview-img');
+      const modalLogoFallback = document.getElementById('modal-logo-preview-fallback');
+      if (modalLogoImg && modalLogoFallback) {
+        if (hasLogo) {
+          modalLogoImg.src = logoSrc;
+          modalLogoImg.classList.remove('hidden');
+          modalLogoFallback.classList.add('hidden');
+        } else {
+          modalLogoImg.src = '';
+          modalLogoImg.classList.add('hidden');
+          modalLogoFallback.classList.remove('hidden');
+        }
+      }
+
+      // Update Header Avatar if present
+      document.querySelectorAll('[data-header-avatar]').forEach((el) => {
+        if (hasLogo) {
+          el.src = logoSrc;
+          el.classList.remove('hidden');
+        } else {
+          el.src = '';
+          el.classList.add('hidden');
+        }
+      });
+      document.querySelectorAll('[data-header-avatar-fallback]').forEach((el) => {
+        if (hasLogo) {
+          el.classList.add('hidden');
+        } else {
+          el.classList.remove('hidden');
+        }
+      });
+
       // Update Avatar Handle
       document.querySelectorAll('[data-profile-handle]').forEach((el) => {
         el.textContent = p.handle || '';
@@ -338,50 +499,117 @@ const currentProfile = {
 
       // Update Author Name & Title
       document.querySelectorAll('[data-profile-author]').forEach((el) => {
-        el.textContent = p.author || '';
+        el.textContent = p.author || p.handle || 'User';
       });
       document.querySelectorAll('[data-profile-role]').forEach((el) => {
         el.textContent = p.role || '';
+        if (p.role) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
       });
       document.querySelectorAll('[data-profile-bio]').forEach((el) => {
-        el.textContent = p.description || '';
+        el.textContent = p.description || 'No description provided yet.';
+        if (p.description) {
+          el.classList.remove('italic', 'text-outline');
+        } else {
+          el.classList.add('italic', 'text-outline');
+        }
       });
 
       // Update Social & Contact links
       document.querySelectorAll('[data-profile-github-link]').forEach((el) => {
-        el.href = p.githubUrl || '';
+        el.href = p.githubUrl || '#';
+        if (p.githubUrl) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
       });
       document.querySelectorAll('[data-profile-github-text]').forEach((el) => {
-        el.textContent = `GitHub: ${p.handle || ''}`;
+        el.textContent = `GitHub: ${p.handle || p.author || ''}`;
       });
 
       document.querySelectorAll('[data-profile-twitter-link]').forEach((el) => {
-        el.href = p.twitterUrl || '';
+        el.href = p.twitterUrl || '#';
+        if (p.twitterUrl) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
       });
       document.querySelectorAll('[data-profile-twitter-text]').forEach((el) => {
         el.textContent = `Twitter: ${p.twitterHandle || ''}`;
       });
 
       document.querySelectorAll('[data-profile-email-link]').forEach((el) => {
-        el.href = `mailto:${p.email || ''}`;
+        el.href = p.email ? `mailto:${p.email}` : '#';
+        if (p.email) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
       });
       document.querySelectorAll('[data-profile-email-text]').forEach((el) => {
         el.textContent = p.email || '';
       });
 
-      // Update Security coordinates (PGP)
-      document.querySelectorAll('[data-profile-pgp]').forEach((el) => {
-        el.textContent = p.pgpKey || '';
+      // Separators
+      document.querySelectorAll('[data-profile-sep-1]').forEach((el) => {
+        if (p.githubUrl && p.twitterUrl) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
+      });
+      document.querySelectorAll('[data-profile-sep-2]').forEach((el) => {
+        if ((p.githubUrl || p.twitterUrl) && p.email) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
       });
 
       // Update Section Header: "Published Posts by {author}"
       document.querySelectorAll('[data-profile-posts-author]').forEach((el) => {
-        el.textContent = `Published Posts by ${p.author || ''}`;
+        el.textContent = p.author ? `Published Posts by ${p.author}` : 'Published Posts';
       });
 
-      // Update Header Brand
+      // Keep Header Brand as glyph.sh
       document.querySelectorAll('[data-author-brand]').forEach((el) => {
-        el.textContent = (p.author || '').toLowerCase();
+        el.textContent = 'glyph.sh';
+      });
+
+      // Keep Footer Brand as glyph.sh
+      document.querySelectorAll('[data-footer-brand]').forEach((el) => {
+        el.textContent = `© ${new Date().getFullYear()} glyph.sh`;
+      });
+
+      // Update Footer Social links
+      document.querySelectorAll('[data-footer-github]').forEach((el) => {
+        if (p.githubUrl) {
+          el.href = p.githubUrl;
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
+      });
+      document.querySelectorAll('[data-footer-twitter]').forEach((el) => {
+        if (p.twitterUrl) {
+          el.href = p.twitterUrl;
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
+      });
+      document.querySelectorAll('[data-footer-email]').forEach((el) => {
+        if (p.email) {
+          el.href = `mailto:${p.email}`;
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
       });
     }
 
@@ -393,10 +621,14 @@ const currentProfile = {
       const handleInp = form.querySelector('#prof-handle');
       const roleInp = form.querySelector('#prof-role');
       const bioInp = form.querySelector('#prof-description');
+      const siteUrlInp = form.querySelector('#prof-siteurl');
       const githubInp = form.querySelector('#prof-github');
       const twitterInp = form.querySelector('#prof-twitter');
       const emailInp = form.querySelector('#prof-email');
-      const pgpInp = form.querySelector('#prof-pgp');
+      const giscusRepoInp = form.querySelector('#prof-giscus-repo');
+      const giscusRepoIdInp = form.querySelector('#prof-giscus-repoid');
+      const giscusCategoryInp = form.querySelector('#prof-giscus-category');
+      const giscusCategoryIdInp = form.querySelector('#prof-giscus-categoryid');
 
       if (authorInp) authorInp.value = profile.author || '';
       if (handleInp) handleInp.value = profile.handle || '';
@@ -406,16 +638,22 @@ const currentProfile = {
         const countEl = document.getElementById('prof-bio-count');
         if (countEl) countEl.textContent = `${bioInp.value.length} chars`;
       }
+      if (siteUrlInp) siteUrlInp.value = profile.siteUrl || '';
       if (githubInp) githubInp.value = profile.githubUrl || '';
       if (twitterInp) twitterInp.value = profile.twitterUrl || '';
       if (emailInp) emailInp.value = profile.email || '';
-      if (pgpInp) pgpInp.value = profile.pgpKey || '';
+      if (giscusRepoInp) giscusRepoInp.value = profile.giscus?.repo || '';
+      if (giscusRepoIdInp) giscusRepoIdInp.value = profile.giscus?.repoId || '';
+      if (giscusCategoryInp) giscusCategoryInp.value = profile.giscus?.category || 'General';
+      if (giscusCategoryIdInp) giscusCategoryIdInp.value = profile.giscus?.categoryId || '';
     }
 
     function openEditorModal() {
+      if (!isDev) return;
       populateForm();
       const modal = document.getElementById('profile-editor-modal');
       if (modal) {
+        modal.style.display = 'flex';
         modal.classList.remove('hidden');
         const firstInput = modal.querySelector('#prof-author');
         if (firstInput) firstInput.focus();
@@ -424,7 +662,10 @@ const currentProfile = {
 
     function closeEditorModal() {
       const modal = document.getElementById('profile-editor-modal');
-      if (modal) modal.classList.add('hidden');
+      if (modal) {
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+      }
     }
 
     function openExportModal() {
@@ -433,90 +674,174 @@ const currentProfile = {
         codeBlock.textContent = JSON.stringify(profile, null, 2);
       }
       const modal = document.getElementById('profile-export-modal');
-      if (modal) modal.classList.remove('hidden');
+      if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.remove('hidden');
+      }
     }
 
     function closeExportModal() {
       const modal = document.getElementById('profile-export-modal');
-      if (modal) modal.classList.add('hidden');
+      if (modal) {
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+      }
     }
 
     function formatHandle(str) {
-      if (!str) return '@unknown';
+      if (!str) return '';
       str = str.trim();
       return str.startsWith('@') ? str : `@${str}`;
     }
 
     function formatUrl(str, fallbackBase) {
-      if (!str) return fallbackBase;
+      if (!str) return '';
       str = str.trim();
-      if (str.startsWith('http://') || str.startsWith('https://')) return str;
+      if (/^https?:\/\//i.test(str)) return str;
       const clean = str.replace(/^@/, '');
-      return `${fallbackBase.replace(/\/+$/, '')}/${clean}`;
+      return fallbackBase ? `${fallbackBase.replace(/\/+$/, '')}/${clean}` : `https://${clean}`;
     }
 
     async function handleSave(e) {
       if (e) e.preventDefault();
+      if (!isDev) return;
+
       const form = document.getElementById('profile-editor-form');
       if (!form) return;
 
-      const author = form.querySelector('#prof-author')?.value.trim();
-      if (!author) {
-        showToast('Author name is required', true);
-        return;
-      }
-
-      const rawHandle = form.querySelector('#prof-handle')?.value.trim() || profile.handle;
+      const rawAuthor = form.querySelector('#prof-author')?.value.trim() || '';
+      const rawHandle = form.querySelector('#prof-handle')?.value.trim() || '';
       const handle = formatHandle(rawHandle);
-      const role = form.querySelector('#prof-role')?.value.trim() || profile.role;
-      const description = form.querySelector('#prof-description')?.value.trim() || profile.description;
-      const rawGithub = form.querySelector('#prof-github')?.value.trim();
-      const githubUrl = formatUrl(rawGithub, profile.githubUrl);
+      const role = form.querySelector('#prof-role')?.value.trim() || '';
+      const description = form.querySelector('#prof-description')?.value.trim() || '';
+      const rawSiteUrl = form.querySelector('#prof-siteurl')?.value.trim() || '';
+      const siteUrl = rawSiteUrl ? formatUrl(rawSiteUrl) : (profile.siteUrl || 'https://example.com');
+      const rawGithub = form.querySelector('#prof-github')?.value.trim() || '';
+      const githubUrl = rawGithub ? formatUrl(rawGithub, 'https://github.com') : '';
 
-      const rawTwitter = form.querySelector('#prof-twitter')?.value.trim();
-      const twitterUrl = formatUrl(rawTwitter, profile.twitterUrl);
-      const twitterHandle = rawTwitter ? formatHandle(rawTwitter.replace(/https?:\/\/(twitter|x)\.com\//, '')) : profile.twitterHandle;
+      const rawTwitter = form.querySelector('#prof-twitter')?.value.trim() || '';
+      const twitterUrl = rawTwitter ? formatUrl(rawTwitter, 'https://x.com') : '';
+      const twitterHandle = rawTwitter ? formatHandle(rawTwitter.replace(/https?:\/\/(twitter|x)\.com\//, '')) : '';
 
-      const email = form.querySelector('#prof-email')?.value.trim() || profile.email;
-      const pgpKey = form.querySelector('#prof-pgp')?.value.trim() || profile.pgpKey;
+      const email = form.querySelector('#prof-email')?.value.trim() || '';
+      const giscusRepo = form.querySelector('#prof-giscus-repo')?.value.trim() || '';
+      const giscusRepoId = form.querySelector('#prof-giscus-repoid')?.value.trim() || '';
+      const giscusCategory = form.querySelector('#prof-giscus-category')?.value.trim() || 'General';
+      const giscusCategoryId = form.querySelector('#prof-giscus-categoryid')?.value.trim() || '';
 
       const updated = {
-        author,
+        author: rawAuthor,
         handle,
+        avatar: profile.avatar || '',
+        logo: profile.logo || '',
         role,
         twitterHandle,
-        title: `${author} // Terminal Blog`,
+        title: "glyph.sh",
         description,
-        siteUrl: profile.siteUrl,
-        pgpKey,
+        siteUrl,
         githubUrl,
         twitterUrl,
         email,
         postsPerPage: profile.postsPerPage || 10,
-        giscus: profile.giscus,
+        giscus: {
+          enabled: Boolean(giscusRepo && giscusRepoId && giscusCategoryId),
+          repo: giscusRepo,
+          repoId: giscusRepoId,
+          category: giscusCategory,
+          categoryId: giscusCategoryId,
+        },
       };
 
-      // Try local dev server endpoint if running
+      applyProfile(updated);
+
       try {
-        const res = await fetch('/api/save-profile', {
+        await fetch('/api/save-profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updated),
         });
-        if (res.ok) {
-          applyProfile(updated);
-          closeEditorModal();
-          showToast('Saved directly to profile.json in repository!');
-          return;
-        }
       } catch (err) {
-        // Fallback for static production environment
+        console.warn('Auto-save to profile.json error:', err);
       }
 
-      applyProfile(updated);
       closeEditorModal();
-      showToast('Updated! Download profile.json to commit to Git.');
+      showToast('✔ Saved to profile.json in repository!');
       openExportModal();
+    }
+
+    async function uploadLogoFile(file) {
+      if (!isDev) return;
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        showToast('Only image files (PNG, JPG, SVG, WebP, GIF) are supported', true);
+        return;
+      }
+
+      if (file.size > 8 * 1024 * 1024) {
+        showToast('Image size exceeds 8MB limit', true);
+        return;
+      }
+
+      showToast('Uploading logo to repository...');
+
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64Data = reader.result;
+          const res = await fetch('/api/upload-logo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              image: base64Data,
+              filename: file.name,
+            }),
+          });
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to upload logo');
+          }
+
+          const data = await res.json();
+          const timestampedUrl = `${data.url}?t=${Date.now()}`;
+          profile.avatar = data.url;
+          profile.logo = data.url;
+
+          applyProfile(profile);
+
+          // Force fresh timestamped preview so browser cache is bypassed immediately
+          document.querySelectorAll('[data-profile-logo-img]').forEach((el) => {
+            el.src = timestampedUrl;
+          });
+          const modalImg = document.getElementById('modal-logo-preview-img');
+          if (modalImg) modalImg.src = timestampedUrl;
+
+          showToast('✔ Logo saved to repo (public/) & profile.json!');
+        } catch (err) {
+          console.error(err);
+          showToast(err.message || 'Error uploading logo', true);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function removeLogo() {
+      if (!isDev) return;
+      profile.avatar = '';
+      profile.logo = '';
+      applyProfile(profile);
+
+      try {
+        await fetch('/api/save-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(profile),
+        });
+        showToast('Logo removed. Reverted to terminal >_');
+      } catch (err) {
+        showToast('Failed to update profile.json', true);
+      }
     }
 
     function downloadJson() {
@@ -541,6 +866,7 @@ const currentProfile = {
 
     function initProfileEditor() {
       applyProfile(currentProfile);
+      updateAccessUI();
 
       const editBtn = document.getElementById('edit-profile-btn');
       if (editBtn) editBtn.onclick = openEditorModal;
@@ -575,11 +901,46 @@ const currentProfile = {
       const downloadJsonBtn = document.getElementById('prof-download-json-btn');
       if (downloadJsonBtn) downloadJsonBtn.onclick = downloadJson;
 
-      const copyJsonBtn = document.getElementById('prof-copy-json-btn');
-      if (copyJsonBtn) copyJsonBtn.onclick = copyJson;
-
       const form = document.getElementById('profile-editor-form');
       if (form) form.onsubmit = handleSave;
+
+      // Direct on-page logo upload triggers
+      const directUploadBtn = document.getElementById('logo-upload-overlay-btn');
+      const directFileInput = document.getElementById('direct-logo-file-input');
+      if (directUploadBtn && directFileInput) {
+        directUploadBtn.onclick = () => {
+          if (!isDev) return;
+          directFileInput.click();
+        };
+        directFileInput.onchange = (e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            uploadLogoFile(file);
+            directFileInput.value = '';
+          }
+        };
+      }
+
+      // Modal logo upload & removal triggers
+      const modalUploadBtn = document.getElementById('modal-upload-logo-btn');
+      const modalFileInput = document.getElementById('modal-logo-file-input');
+      const modalRemoveBtn = document.getElementById('modal-remove-logo-btn');
+      if (modalUploadBtn && modalFileInput) {
+        modalUploadBtn.onclick = () => {
+          if (!isDev) return;
+          modalFileInput.click();
+        };
+        modalFileInput.onchange = (e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            uploadLogoFile(file);
+            modalFileInput.value = '';
+          }
+        };
+      }
+      if (modalRemoveBtn) {
+        modalRemoveBtn.onclick = removeLogo;
+      }
 
       const bioInp = document.getElementById('prof-description');
       if (bioInp) {
@@ -593,6 +954,7 @@ const currentProfile = {
         const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName || '');
 
         if (e.key === 'e' && !isInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          if (!isDev) return;
           const modal = document.getElementById('profile-editor-modal');
           if (modal && modal.classList.contains('hidden')) {
             e.preventDefault();

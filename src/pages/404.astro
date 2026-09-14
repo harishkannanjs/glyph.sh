@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { siteConfig } from '@/site.config';
 ---
 
 <BaseLayout title="404: Not Found">
@@ -31,7 +32,7 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
         <!-- Terminal Body Content -->
         <div class="p-4 space-y-3 font-mono leading-relaxed bg-surface-container-lowest text-on-surface text-[13px]">
           <div class="flex items-center gap-2">
-            <span class="text-primary font-bold">harish@research:~$</span>
+            <span class="text-primary font-bold">{siteConfig.handle ? siteConfig.handle.replace(/^@/, '') : 'user'}@terminal:~$</span>
             <span class="text-on-surface">cat requested-page.md</span>
           </div>
 
@@ -79,7 +80,7 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 
           <!-- Blinking caret active state -->
           <div class="flex items-center gap-2 pt-1">
-            <span class="text-primary font-bold">harish@research:~$</span>
+            <span class="text-primary font-bold">{siteConfig.handle ? siteConfig.handle.replace(/^@/, '') : 'user'}@terminal:~$</span>
             <span class="inline-block w-2.5 h-4 bg-primary animate-pulse align-middle"></span>
           </div>
         </div>

@@ -1,5 +1,6 @@
 ---
 import { getCollection } from 'astro:content';
+import { siteConfig } from '@/site.config';
 
 const posts = await getCollection('blog', ({ data }) => !data.draft);
 const searchData = posts.map((post) => ({
@@ -35,12 +36,12 @@ const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1] || a[0].
   >
     <!-- Prompt & Input Bar -->
     <div class="flex items-center gap-2 px-4 py-2.5 border-b border-outline-variant bg-surface-container">
-      <span class="text-primary font-bold select-none text-[13px]">harish@research:~$</span>
+      <span class="text-primary font-bold select-none text-[13px]">{siteConfig.handle ? siteConfig.handle.replace(/^@/, '') : 'user'}@terminal:~$</span>
       <input
         type="text"
         id="command-palette-input"
         class="flex-1 bg-transparent text-on-surface font-mono text-[13px] placeholder:text-outline focus:outline-none"
-        placeholder="search articles, CVEs, or tags (e.g. #rust)..."
+        placeholder="search articles or tags (e.g. #rust)..."
         autocomplete="off"
         spellcheck="false"
       />
