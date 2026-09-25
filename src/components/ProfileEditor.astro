@@ -437,33 +437,94 @@ const currentProfile = {
 
     <!-- Modal Body -->
     <div class="p-4 sm:p-5 flex-1 overflow-y-auto space-y-3.5 text-[12px]">
-      <!-- Repo Coordinates & Health Card -->
-      <div class="p-3 bg-surface-container-low border border-outline-variant rounded-[2px] space-y-2">
-        <div class="flex items-center justify-between flex-wrap gap-2">
-          <div class="flex items-center gap-2 min-w-0">
-            <span class="text-primary font-bold shrink-0">&gt;</span>
-            <span class="text-on-surface font-semibold text-[11px] shrink-0">Repository:</span>
-            <span id="git-push-remote" class="text-primary text-[11px] font-mono truncate max-w-[340px]">Detecting...</span>
+      <!-- Incomplete Profile Details Warning Box -->
+      <div
+        id="git-profile-warning"
+        class="p-3 bg-error/10 border border-error/50 text-error rounded-[2px] flex items-center justify-between gap-3 hidden"
+      >
+        <div class="flex items-start gap-2 text-[11px] leading-relaxed">
+          <span class="text-[15px] leading-none shrink-0 mt-0.5">⚠️</span>
+          <div>
+            <div class="font-bold text-[12px] text-error">Fill the profile details first to proceed github push</div>
+            <div class="text-on-surface-variant text-[10.5px] mt-0.5">
+              Your profile in <code class="text-primary font-mono">profile.json</code> is not yet configured. Please fill in your author name and GitHub username first.
+            </div>
           </div>
-          <div class="flex items-center gap-1.5 shrink-0">
-            <span class="text-outline text-[10px]">branch:</span>
-            <span id="git-push-branch" class="px-1.5 py-0.5 bg-surface-container border border-outline-variant text-primary text-[10px] rounded-[2px] font-bold">master</span>
+        </div>
+        <button
+          type="button"
+          id="git-open-profile-btn"
+          class="px-3 py-1.5 bg-surface-container border border-error/60 hover:border-error text-error hover:bg-error/20 text-[11px] font-bold rounded-[2px] cursor-pointer shrink-0 transition-colors flex items-center gap-1"
+        >
+          <span>&gt;</span>
+          <span>$ edit-profile</span>
+        </button>
+      </div>
+
+      <!-- Top Branch & Repository Settings Card -->
+      <div class="p-3 bg-surface-container-low border border-outline-variant rounded-[2px] space-y-2.5">
+        <!-- Top Row: Branch Dropdown Selector (Main / Master) & Git Status -->
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-2">
+            <span class="text-primary font-bold">&gt;</span>
+            <label for="git-push-branch-select" class="text-on-surface font-semibold text-[11px]">
+              Branch:
+            </label>
+            <div class="relative inline-block">
+              <select
+                id="git-push-branch-select"
+                class="bg-surface-container border border-outline-variant hover:border-primary text-primary text-[11px] font-bold font-mono px-2.5 py-1 rounded-[2px] focus:outline-none focus:border-primary cursor-pointer transition-colors"
+              >
+                <option value="main">Main</option>
+                <option value="master">Master</option>
+              </select>
+            </div>
+            <span class="text-outline text-[10px] hidden sm:inline">(select "Main" or "Master" branch to push)</span>
+          </div>
+
+          <div class="flex items-center gap-2 text-[11px]">
+            <span id="git-push-status-dot" class="w-2 h-2 rounded-full bg-outline inline-block"></span>
+            <span id="git-push-status-text" class="text-on-surface-variant text-[11px]">Checking git status...</span>
+            <button
+              type="button"
+              id="git-refresh-status-btn"
+              class="text-[10px] text-primary hover:underline cursor-pointer ml-1"
+              title="Re-check git status and profile.json"
+            >
+              ⟳ refresh
+            </button>
           </div>
         </div>
 
-        <div class="flex items-center justify-between text-[11px] pt-1.5 border-t border-outline-variant/60">
-          <div class="flex items-center gap-2">
-            <span id="git-push-status-dot" class="w-2 h-2 rounded-full bg-outline inline-block"></span>
-            <span id="git-push-status-text" class="text-on-surface-variant">Checking local git changes...</span>
+        <!-- Target Repository URL (Auto-filled from profile.json) -->
+        <div class="space-y-1 pt-1.5 border-t border-outline-variant/60">
+          <div class="flex items-center justify-between text-[11px]">
+            <label for="git-push-repo-input" class="text-on-surface font-semibold flex items-center gap-1.5">
+              <span>Target Repository URL:</span>
+              <span id="git-repo-badge" class="text-primary text-[10px] font-mono px-1.5 py-0.2 bg-primary/10 border border-primary/30 rounded-[2px]">auto-filled from profile.json</span>
+            </label>
+            <a
+              id="git-view-repo-link"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[10px] text-primary hover:underline flex items-center gap-0.5 hidden"
+            >
+              <span>view on github</span>
+              <span>↗</span>
+            </a>
           </div>
-          <button
-            type="button"
-            id="git-refresh-status-btn"
-            class="text-[10px] text-primary hover:underline cursor-pointer"
-            title="Re-check git status"
-          >
-            ⟳ refresh
-          </button>
+          <div class="relative">
+            <input
+              type="text"
+              id="git-push-repo-input"
+              class="w-full bg-surface-container-lowest px-3 py-1.5 text-[12px] font-mono border border-outline-variant focus:border-primary focus:outline-none text-primary rounded-[2px] transition-colors"
+              placeholder="https://github.com/username/glyph.sh.git"
+            />
+          </div>
+          <div id="git-repo-hint" class="text-[10px] text-outline">
+            Username grabbed automatically from your saved profile details.
+          </div>
         </div>
       </div>
 
@@ -524,16 +585,10 @@ const currentProfile = {
 
     <!-- Modal Footer Actions -->
     <div class="flex items-center justify-between gap-2 px-4 py-3 bg-surface-container border-t border-outline-variant">
-      <a
-        id="git-view-repo-link"
-        href={currentProfile.githubUrl || siteConfig.githubUrl || 'https://github.com'}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="text-[11px] text-primary hover:underline flex items-center gap-1 hidden sm:flex"
-      >
-        <span>Open GitHub Repo</span>
-        <span>↗</span>
-      </a>
+      <div id="git-footer-status" class="text-[11px] text-outline flex items-center gap-1.5 hidden sm:flex">
+        <span class="text-primary font-mono">&gt;_</span>
+        <span id="git-footer-status-text">Ready to push</span>
+      </div>
 
       <div class="flex items-center gap-2 ml-auto">
         <button
@@ -958,6 +1013,10 @@ const currentProfile = {
           applyProfile(profile);
         }
 
+        try {
+          fetchGitStatus();
+        } catch {}
+
         closeEditorModal();
         showToast('✔ Saved to profile.json in repository!');
         openExportModal();
@@ -1064,6 +1123,87 @@ const currentProfile = {
       }
     }
 
+    function isPlaceholder(val) {
+      if (!val) return true;
+      const s = String(val).trim().toLowerCase();
+      const placeholders = [
+        'username',
+        'yourhandle',
+        'your-handle',
+        'your_handle',
+        'user',
+        'example',
+        'author',
+        'your name',
+        'yourname',
+        'your-name',
+      ];
+      return placeholders.includes(s);
+    }
+
+    function extractGitHubUsername(p) {
+      if (!p) return '';
+      // 1. From githubUrl
+      const gh = (p.githubUrl || '').trim();
+      if (gh) {
+        const match = gh.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/([a-zA-Z0-9_\-\.]+)/i);
+        if (match && match[1] && !isPlaceholder(match[1])) {
+          return match[1].replace(/\.git$/i, '').replace(/\/+$/, '');
+        }
+        if (!gh.includes('/') && !gh.includes(':') && !isPlaceholder(gh)) {
+          return gh.replace(/^@/, '');
+        }
+      }
+      // 2. From handle
+      const handle = (p.handle || '').trim().replace(/^@/, '');
+      if (handle && !isPlaceholder(handle)) {
+        return handle;
+      }
+      // 3. From siteUrl (e.g. username.github.io)
+      const site = (p.siteUrl || '').trim();
+      if (site) {
+        const ghIoMatch = site.match(/(?:https?:\/\/)?([a-zA-Z0-9_\-\.]+)\.github\.io/i);
+        if (ghIoMatch && ghIoMatch[1] && !isPlaceholder(ghIoMatch[1])) {
+          return ghIoMatch[1];
+        }
+      }
+      return '';
+    }
+
+    function checkProfileStatus(p) {
+      const username = extractGitHubUsername(p);
+      const author = (p?.author || '').trim();
+      const authorIsPlaceholder = !author || isPlaceholder(author);
+      const ghIsPlaceholder = !p?.githubUrl || p.githubUrl.toLowerCase().includes('github.com/username') || p.githubUrl.toLowerCase().includes('example.com');
+      const isIncomplete = !username || isPlaceholder(username) || authorIsPlaceholder || ghIsPlaceholder;
+
+      return {
+        isIncomplete,
+        username: username || '',
+      };
+    }
+
+    function extractRepoName(currentRemoteUrl, siteUrl) {
+      if (currentRemoteUrl) {
+        const clean = currentRemoteUrl.trim().replace(/\.git$/i, '').replace(/\/+$/, '');
+        const parts = clean.split(/[\/:]/);
+        const last = parts[parts.length - 1];
+        if (last && last.length > 0) {
+          return last;
+        }
+      }
+      if (siteUrl) {
+        try {
+          const u = new URL(/^https?:\/\//i.test(siteUrl) ? siteUrl : `https://${siteUrl}`);
+          const segs = u.pathname.split('/').filter(Boolean);
+          if (segs.length > 0) {
+            return segs[0];
+          }
+        } catch {}
+      }
+      return 'glyph.sh';
+    }
+
     let currentGitInfo = {
       branch: 'master',
       remote: '',
@@ -1076,33 +1216,63 @@ const currentProfile = {
     function updateGitCommandPreview() {
       const msgInput = document.getElementById('git-commit-msg-input');
       const previewEl = document.getElementById('git-cmd-preview');
+      const branchSelect = document.getElementById('git-push-branch-select');
+      const repoInput = document.getElementById('git-push-repo-input');
       if (!previewEl) return;
 
-      const branch = currentGitInfo.branch || 'master';
+      const profileStatus = checkProfileStatus(profile);
+      if (profileStatus.isIncomplete) {
+        previewEl.textContent = '# Fill the profile details first to proceed github push.\n# Click "$ edit-profile" to set your author details and GitHub username.';
+        return;
+      }
+
+      const branch = (branchSelect?.value || currentGitInfo.branch || 'master').toLowerCase();
+      const repo = (repoInput?.value.trim()) || `https://github.com/${profileStatus.username}/glyph.sh.git`;
       const rawMsg = msgInput ? msgInput.value.trim() : '';
       const commitPart = rawMsg
         ? `git commit -m "${rawMsg.replace(/"/g, '\\"')}"`
         : `git commit --allow-empty-message -m ""`;
 
-      previewEl.textContent = `git add -A && ${commitPart} && git push origin ${branch}`;
+      previewEl.textContent = `git remote set-url origin ${repo} && git branch -M ${branch} && git add -A && ${commitPart} && git push -u origin ${branch}`;
     }
 
     async function fetchGitStatus() {
       if (!isDev) return;
-      const remoteEl = document.getElementById('git-push-remote');
-      const branchEl = document.getElementById('git-push-branch');
+      const branchSelect = document.getElementById('git-push-branch-select');
+      const repoInput = document.getElementById('git-push-repo-input');
+      const repoBadge = document.getElementById('git-repo-badge');
+      const repoHint = document.getElementById('git-repo-hint');
+      const profileWarning = document.getElementById('git-profile-warning');
       const dotEl = document.getElementById('git-push-status-dot');
       const textEl = document.getElementById('git-push-status-text');
       const changedFilesBox = document.getElementById('git-changed-files-box');
       const changedFilesList = document.getElementById('git-changed-files-list');
       const changedFilesCount = document.getElementById('git-changed-files-count');
       const repoLink = document.getElementById('git-view-repo-link');
+      const executeBtn = document.getElementById('execute-git-push-btn');
+      const footerStatusText = document.getElementById('git-footer-status-text');
+      const consoleOut = document.getElementById('git-console-output');
 
-      if (textEl) textEl.textContent = 'Checking local repository status...';
+      if (textEl) textEl.textContent = 'Checking repository & profile...';
       if (dotEl) {
         dotEl.className = 'w-2 h-2 rounded-full bg-outline inline-block animate-pulse';
       }
 
+      // 1. Sync latest profile.json from server
+      try {
+        const pRes = await fetch('/api/get-profile');
+        if (pRes.ok) {
+          const pData = await pRes.json();
+          if (pData.profile) {
+            profile = { ...profile, ...pData.profile };
+          }
+        }
+      } catch {}
+
+      // 2. Check profile completion status
+      const profileStatus = checkProfileStatus(profile);
+
+      // 3. Fetch git status from server
       try {
         const res = await fetch('/api/git-status');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1111,17 +1281,94 @@ const currentProfile = {
 
         currentGitInfo = data;
 
-        if (branchEl) branchEl.textContent = data.branch || 'master';
-        if (remoteEl) {
-          remoteEl.textContent = data.remote || (profile.githubUrl || 'origin');
-          remoteEl.title = data.remote || '';
+        // Set branch dropdown if not manually set by user yet
+        if (branchSelect && data.branch) {
+          const currentB = data.branch.toLowerCase();
+          if (currentB === 'main' || currentB === 'master') {
+            branchSelect.value = currentB;
+          }
         }
 
-        if (repoLink && data.remote) {
-          const webUrl = data.remote.replace(/\.git$/i, '').replace(/^git@github\.com:/i, 'https://github.com/');
-          repoLink.href = webUrl;
+        // Determine repo target
+        const repoName = extractRepoName(data.remote, profile.siteUrl);
+        const resolvedRepo = profileStatus.username
+          ? `https://github.com/${profileStatus.username}/${repoName}.git`
+          : (data.remote || `https://github.com/username/${repoName}.git`);
+
+        if (repoInput) {
+          repoInput.value = resolvedRepo;
+        }
+
+        if (repoBadge) {
+          if (profileStatus.username) {
+            repoBadge.textContent = `auto-filled from profile.json (@${profileStatus.username})`;
+            repoBadge.className = 'text-primary text-[10px] font-mono px-1.5 py-0.2 bg-primary/10 border border-primary/30 rounded-[2px]';
+          } else {
+            repoBadge.textContent = 'profile details required';
+            repoBadge.className = 'text-error text-[10px] font-mono px-1.5 py-0.2 bg-error/10 border border-error/30 rounded-[2px]';
+          }
+        }
+
+        if (repoHint) {
+          if (profileStatus.username) {
+            repoHint.textContent = `Target repo: https://github.com/${profileStatus.username}/${repoName}.git (fetched from profile.json)`;
+            repoHint.className = 'text-[10px] text-outline';
+          } else {
+            repoHint.textContent = '⚠️ GitHub username not found in profile.json. Fill profile details first.';
+            repoHint.className = 'text-[10px] text-error font-medium';
+          }
+        }
+
+        if (repoLink && profileStatus.username) {
+          repoLink.href = `https://github.com/${profileStatus.username}/${repoName}`;
           repoLink.classList.remove('hidden');
           repoLink.classList.add('flex');
+        } else if (repoLink) {
+          repoLink.classList.add('hidden');
+          repoLink.classList.remove('flex');
+        }
+
+        // Handle profile incomplete state vs complete state
+        if (profileStatus.isIncomplete) {
+          if (profileWarning) {
+            profileWarning.classList.remove('hidden');
+            profileWarning.classList.add('flex');
+          }
+          if (executeBtn) {
+            executeBtn.disabled = true;
+            executeBtn.title = 'Fill the profile details first to proceed github push';
+            executeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+          }
+          if (footerStatusText) {
+            footerStatusText.textContent = 'Action disabled: profile details required';
+            footerStatusText.className = 'text-error';
+          }
+          if (consoleOut) {
+            consoleOut.textContent = [
+              `⚠️ [PROFILE INCOMPLETE] Fill the profile details first to proceed github push.`,
+              `----------------------------------------------------`,
+              `Your profile in profile.json still contains template placeholder values:`,
+              `  • Author: "${profile.author || 'N/A'}"`,
+              `  • GitHub URL: "${profile.githubUrl || 'N/A'}"`,
+              ``,
+              `Click "$ edit-profile" above to set your real author name and GitHub username.`,
+              `Once saved, your GitHub repository URL will be automatically configured here.`,
+            ].join('\n');
+          }
+        } else {
+          if (profileWarning) {
+            profileWarning.classList.add('hidden');
+            profileWarning.classList.remove('flex');
+          }
+          if (executeBtn) {
+            executeBtn.disabled = false;
+            executeBtn.title = 'Push local codebase to GitHub';
+            executeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+          }
+          if (footerStatusText) {
+            footerStatusText.textContent = `Ready to push to @${profileStatus.username}/${repoName}`;
+            footerStatusText.className = 'text-outline';
+          }
         }
 
         const changesCount = (data.changedFiles || []).length;
@@ -1150,7 +1397,7 @@ const currentProfile = {
           if (textEl) {
             textEl.textContent = unpushed > 0
               ? `Working tree clean (${unpushed} unpushed commit${unpushed > 1 ? 's' : ''})`
-              : 'Working tree clean, up-to-date with remote';
+              : 'Working tree clean, ready';
           }
           if (changedFilesBox) changedFilesBox.classList.add('hidden');
         }
@@ -1191,14 +1438,25 @@ const currentProfile = {
 
     async function executeGitPush() {
       if (!isDev) return;
+
+      const profileStatus = checkProfileStatus(profile);
+      if (profileStatus.isIncomplete) {
+        showToast('Fill the profile details first to proceed github push', true);
+        return;
+      }
+
       const btn = document.getElementById('execute-git-push-btn');
       const icon = document.getElementById('git-push-btn-icon');
       const text = document.getElementById('git-push-btn-text');
       const consoleOut = document.getElementById('git-console-output');
       const consoleStatus = document.getElementById('git-console-status');
       const msgInput = document.getElementById('git-commit-msg-input');
+      const branchSelect = document.getElementById('git-push-branch-select');
+      const repoInput = document.getElementById('git-push-repo-input');
 
       const commitMsg = msgInput ? msgInput.value.trim() : '';
+      const selectedBranch = (branchSelect?.value || currentGitInfo.branch || 'master').toLowerCase();
+      const repoUrl = repoInput?.value.trim() || '';
 
       if (btn) btn.disabled = true;
       if (icon) icon.textContent = '⏳';
@@ -1208,16 +1466,27 @@ const currentProfile = {
         consoleStatus.className = 'text-[10px] text-primary animate-pulse';
       }
 
-      const branch = currentGitInfo.branch || 'master';
       if (consoleOut) {
-        consoleOut.textContent = `> git add -A\n> git commit ${commitMsg ? `-m "${commitMsg}"` : '--allow-empty-message -m ""'}\n> git push origin ${branch}\n\nRunning... Please wait.`;
+        consoleOut.textContent = [
+          `> git remote set-url origin ${repoUrl}`,
+          `> git branch -M ${selectedBranch}`,
+          `> git add -A`,
+          `> git commit ${commitMsg ? `-m "${commitMsg}"` : '--allow-empty-message -m ""'}`,
+          `> git push -u origin ${selectedBranch}`,
+          ``,
+          `Pushing codebase to ${repoUrl} [branch: ${selectedBranch}]... Please wait.`,
+        ].join('\n');
       }
 
       try {
         const res = await fetch('/api/git-push', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: commitMsg }),
+          body: JSON.stringify({
+            message: commitMsg,
+            branch: selectedBranch,
+            repoUrl: repoUrl,
+          }),
         });
 
         const data = await res.json();
@@ -1229,7 +1498,8 @@ const currentProfile = {
           }
           if (consoleOut) {
             consoleOut.textContent = [
-              `✔ [SUCCESS] Codebase pushed to origin/${data.branch || branch}!`,
+              `✔ [SUCCESS] Codebase pushed to origin/${data.branch || selectedBranch}!`,
+              `Target Remote: ${data.remote || repoUrl}`,
               `----------------------------------------------------`,
               data.hasNewCommit ? `Commit Output:\n${data.commitOutput}` : `Commit: Working tree clean`,
               `----------------------------------------------------`,
@@ -1244,7 +1514,7 @@ const currentProfile = {
           showToast('✔ Codebase pushed to GitHub successfully!');
           if (msgInput) msgInput.value = '';
 
-          // Refresh status after 2s
+          // Refresh status after 2.5s
           setTimeout(() => {
             fetchGitStatus();
             if (btn) btn.disabled = false;
@@ -1261,7 +1531,7 @@ const currentProfile = {
         }
         if (consoleOut) {
           const previewEl = document.getElementById('git-cmd-preview');
-          const cmd = previewEl ? previewEl.textContent : `git add -A && git push origin ${branch}`;
+          const cmd = previewEl ? previewEl.textContent : `git push -u origin ${selectedBranch}`;
           consoleOut.textContent = [
             `✖ [ERROR] Failed to push to remote:`,
             err.message,
@@ -1337,6 +1607,20 @@ const currentProfile = {
 
       const gitCommitMsgInput = document.getElementById('git-commit-msg-input');
       if (gitCommitMsgInput) gitCommitMsgInput.oninput = updateGitCommandPreview;
+
+      const branchSelect = document.getElementById('git-push-branch-select');
+      if (branchSelect) branchSelect.onchange = updateGitCommandPreview;
+
+      const repoInput = document.getElementById('git-push-repo-input');
+      if (repoInput) repoInput.oninput = updateGitCommandPreview;
+
+      const openProfileBtn = document.getElementById('git-open-profile-btn');
+      if (openProfileBtn) {
+        openProfileBtn.onclick = () => {
+          closeGitPushModal();
+          openEditorModal();
+        };
+      }
 
       const copyExportBtn = document.getElementById('copy-export-code-btn');
       if (copyExportBtn) {

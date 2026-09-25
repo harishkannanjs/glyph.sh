@@ -877,19 +877,35 @@ function profileDevMiddleware() {
                 payload = JSON.parse(body || '{}');
               } catch {}
               const customMsg = typeof payload.message === 'string' ? payload.message.trim() : '';
+              const targetBranch = (payload.branch === 'main' || payload.branch === 'master') ? payload.branch : 'master';
+              const targetRepo = typeof payload.repoUrl === 'string' ? payload.repoUrl.trim() : '';
               const cwd = process.cwd();
 
-              // 1. Current branch
-              let branch = 'master';
-              try {
-                const { stdout } = await exec('git branch --show-current', { cwd });
-                branch = stdout.trim() || 'master';
-              } catch {}
+              // 1. If targetRepo is specified, ensure remote origin is set to it
+              if (targetRepo && (/^https?:\/\//i.test(targetRepo) || targetRepo.startsWith('git@'))) {
+                try {
+                  const { stdout: currentRemote } = await exec('git remote get-url origin', { cwd });
+                  if (currentRemote.trim() !== targetRepo) {
+                    await exec(`git remote set-url origin ${JSON.stringify(targetRepo)}`, { cwd });
+                  }
+                } catch {
+                  try {
+                    await exec(`git remote add origin ${JSON.stringify(targetRepo)}`, { cwd });
+                  } catch {}
+                }
+              }
 
-              // 2. Stage all changes
+              // 2. Switch/rename branch to targetBranch (main or master)
+              try {
+                await exec(`git branch -M ${targetBranch}`, { cwd });
+              } catch (bErr) {
+                console.warn('git branch -M warning:', bErr.message);
+              }
+
+              // 3. Stage all changes
               await exec('git add -A', { cwd, maxBuffer: 20 * 1024 * 1024 });
 
-              // 3. Commit if any changes exist
+              // 4. Commit if any changes exist
               const { stdout: statusOut } = await exec('git status --porcelain', { cwd, maxBuffer: 20 * 1024 * 1024 });
               let commitOutput = 'Working tree was clean, no new commit needed.';
               let hasNewCommit = false;
@@ -905,29 +921,38 @@ function profileDevMiddleware() {
                 hasNewCommit = true;
               }
 
-              // 4. Push to origin with 90s timeout and generous buffer
-              const { stdout: pushStdout, stderr: pushStderr } = await exec(`git push origin ${branch}`, {
+              // 5. Push to origin with selected branch & upstream tracking
+              const { stdout: pushStdout, stderr: pushStderr } = await exec(`git push -u origin ${targetBranch}`, {
                 cwd,
                 timeout: 90000,
                 maxBuffer: 20 * 1024 * 1024,
               });
 
-              // 5. Get last commit
+              // 6. Get last commit
               let lastCommit = '';
               try {
                 const { stdout } = await exec('git log -1 --oneline', { cwd });
                 lastCommit = stdout.trim();
               } catch {}
 
+              let resolvedRemote = targetRepo;
+              if (!resolvedRemote) {
+                try {
+                  const { stdout } = await exec('git remote get-url origin', { cwd });
+                  resolvedRemote = stdout.trim();
+                } catch {}
+              }
+
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({
                 success: true,
-                branch,
+                branch: targetBranch,
+                remote: resolvedRemote,
                 hasNewCommit,
                 commitOutput,
                 pushOutput: (pushStdout + '\n' + pushStderr).trim(),
                 lastCommit,
-                message: `Successfully pushed to origin/${branch}!`,
+                message: `Successfully pushed to origin/${targetBranch}!`,
               }));
             } catch (err) {
               const errText = (err.stderr || err.stdout || err.message || '').toString().trim();
