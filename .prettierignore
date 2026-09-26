@@ -1,0 +1,18 @@
+dist/
+.astro/
+node_modules/
+public/
+Blogs/
+guardrails/
+design/
+*.md
+bun.lock
+# Phase 1 constraint: components, layouts, pages are frozen until Phase 2+
+src/components/
+src/layouts/
+src/pages/
+src/styles/
+src/lib/
+src/content/
+src/site.config.ts
+astro.config.mjs
