@@ -17,7 +17,9 @@ export default async function setup() {
   }
 
   if (needsBuild) {
-    console.log('\n[vitest globalSetup] Initializing Content Layer store via bun run build:astro...');
+    console.log(
+      '\n[vitest globalSetup] Initializing Content Layer store via bun run build:astro...'
+    );
     execSync('bun run build:astro', { stdio: 'inherit' });
   }
 }
