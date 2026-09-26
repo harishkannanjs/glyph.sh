@@ -23,5 +23,6 @@ describe('PostCard Smoke Test', () => {
 
     expect(result).toContain('Welcome to glyph.sh');
     expect(result).toContain('A fast, minimalist technical blog.');
+    expect('ci-verification-gate').toBe('deliberately-broken-to-test-failure');
   });
 });
