@@ -19,7 +19,7 @@
   separate from `deploy.yml`) that runs on every pull request: install →
   `astro check` → lint → test. Do not modify `deploy.yml` in this task —
   deploy and verification are separate concerns.
-- [ ] Confirm the new CI workflow actually fails on a deliberately broken
+- [x] Confirm the new CI workflow actually fails on a deliberately broken
   PR (e.g. a syntax error pushed to a throwaway branch), then revert the
   deliberate breakage — this proves the gate works before relying on it
   for every phase after this one.
