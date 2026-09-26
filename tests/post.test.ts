@@ -6,6 +6,12 @@ import BlogPostLayout from '../src/layouts/BlogPostLayout.astro';
 describe('Blog Post Smoke Test', () => {
   it('renders welcome-to-glyph.md via BlogPostLayout without throwing', async () => {
     const posts = await getCollection('blog');
+    console.log(
+      '[DEBUG CI] posts count:',
+      posts?.length,
+      'ids:',
+      posts?.map((p) => p.id)
+    );
     const targetPost = posts.find((p) => p.id.includes('welcome-to-glyph'));
     expect(targetPost).toBeDefined();
 
